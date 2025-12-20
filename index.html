@@ -1,0 +1,2648 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>نظام كشف الحضور - كلية التمريض</title>
+    
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#0ea5e9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" href="icon.png" type="image/png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Outfit:wght@500;700;900&family=Reem+Kufi:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+    <style>
+        /* === الأساسيات === */
+        #desktop-blocker { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0f172a; color: #ef4444; z-index: 2147483647; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; font-family: 'Cairo'; }
+        :root { --primary: #0ea5e9; --primary-dark: #0284c7; --text-main: #1e293b; --text-sub: #64748b; --glass-bg: rgba(255, 255, 255, 0.95); --danger: #ef4444; --success: #10b981; --warning: #f59e0b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        html { background-color: #e0f2fe !important; height: 100vh; overflow-y: auto; overflow-x: hidden; } 
+        
+        body { 
+            font-family: 'Cairo', sans-serif; 
+            min-height: 100vh; width: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            color: var(--text-main); background-color: transparent !important; position: relative; 
+            padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); 
+            -webkit-user-select: none; user-select: none; touch-action: manipulation; transition: all 0.3s; 
+        }
+        
+        .en-font { font-family: 'Outfit', sans-serif !important; direction: ltr !important; unicode-bidi: embed; letter-spacing: 0.5px; }
+        
+        .bg-image { 
+            background: linear-gradient(135deg, #e0f2fe 0%, #0ea5e9 100%); 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; 
+        }
+        
+        .app-card { 
+            background: linear-gradient(180deg, #ffffff 0%, #f0f9ff 100%); 
+            width: 90%; max-width: 400px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(14, 165, 233, 0.25); 
+            text-align: center; position: relative; overflow: hidden; animation: slideUp 0.6s ease-out; 
+            margin: 20px auto; min-height: 650px; display: flex; flex-direction: column;
+            border: 1px solid rgba(255,255,255,0.6); 
+        }
+        
+        @media (max-height: 650px) {
+            body { justify-content: flex-start; padding-top: 20px; overflow-y: auto; }
+            .app-card { margin-top: 0; margin-bottom: 50px; min-height: auto; height: auto; border-radius: 16px; overflow: visible; }
+            .card-body { overflow-y: visible; }
+            .section.active { padding-bottom: 150px; } 
+            .modal-overlay { align-items: flex-start !important; padding-top: 10px; overflow-y: auto; }
+            .modal-box { margin-top: 10px; margin-bottom: 50px; position: relative; top: 0; transform: none !important; }
+        }
+
+        .btn-google-maps { 
+            background: #ffffff; color: #3c4043; width: 100%; padding: 12px 15px; border-radius: 16px; 
+            border: 1px solid #e2e8f0; font-size: 13px; font-weight: 700; font-family: 'Cairo'; 
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 12px; 
+            margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); transition: all 0.2s; 
+        }
+        .btn-google-maps:active { transform: scale(0.97); background: #f8fafc; }
+        .maps-icon-img { width: 24px; height: 24px; object-fit: contain; }
+
+        .card-banner { width: 100%; height: 140px; background: linear-gradient(135deg, #0ea5e9, #0284c7); position: relative; border-radius: 24px 24px 0 0; overflow: hidden; z-index: 2; flex-shrink: 0; }
+        .card-banner::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 50%; background: linear-gradient(to top, #ffffff, transparent); }
+        
+        .card-body { padding: 0 25px 30px 25px; position: relative; z-index: 2; flex: 1; display: flex; flex-direction: column; }
+        .card-body-content { position: relative; flex: 1; display: flex; flex-direction: column; z-index: 5; }
+        
+        .hero-icon-wrapper { width: 110px; height: 110px; margin: -65px auto 20px auto; position: relative; z-index: 10; border-radius: 50%; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.6); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 0 0 4px rgba(255, 255, 255, 0.3), 0 0 25px rgba(14, 165, 233, 0.4); overflow: hidden; animation: float-magic 4s ease-in-out infinite alternate; }
+        .hero-img { width: 100%; height: 100%; object-fit: cover; transform: scale(0.94); border-radius: 50%; display: block; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); opacity: 1; box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.05); position: relative; z-index: 2; }
+        .status-icon-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(5px); opacity: 0; transform: scale(0); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); border-radius: 50%; z-index: 3; }
+        .hero-icon { font-size: 42px; color: var(--primary); transition: 0.3s; filter: drop-shadow(0 4px 6px rgba(14, 165, 233, 0.3)); }
+        .hero-icon-wrapper.show-icon .hero-img { transform: scale(0); opacity: 0; }
+        .hero-icon-wrapper.show-icon .status-icon-container { opacity: 1; transform: scale(1); }
+        @keyframes float-magic { 0% { transform: translateY(0); } 100% { transform: translateY(-12px); } }
+        
+        #topToast { 
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%); 
+            background: linear-gradient(135deg, #0f172a, #334155); 
+            padding: 12px 25px; border-radius: 30px; 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3); 
+            z-index: 999999; transition: top 0.5s cubic-bezier(0.68, -0.55, 0.26, 1.55); 
+            font-weight: 800; color: #fff; display: flex; align-items: center; gap: 12px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            backdrop-filter: blur(10px);
+            font-size: 13px;
+        }
+        #topToast.show { top: 30px; }
+        #topToast i { color: #38bdf8; font-size: 16px; }
+
+        .arrow-anim { font-size: 20px; color: var(--warning); animation: moveRight 0.8s infinite alternate; }
+        @keyframes moveRight { from { transform: translateX(0); } to { transform: translateX(8px); } }
+
+        .progress-container { width: 80%; background-color: #e2e8f0; border-radius: 10px; margin: 15px auto; height: 8px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #0ea5e9, #6366f1); width: 0%; animation: fillBar 3s ease-in-out infinite; border-radius: 10px; }
+        @keyframes fillBar { 0% { width: 0%; } 50% { width: 70%; } 100% { width: 100%; } }
+
+        #verificationSuccessModal .modal-box { 
+            border-top: none; 
+            border-radius: 30px;
+            max-width: 260px;
+            padding: 30px 20px;
+            background: rgba(255, 255, 255, 0.98);
+            box-shadow: 0 20px 60px rgba(16, 185, 129, 0.2);
+        }
+        .success-icon-large { font-size: 50px; color: #10b981; margin-bottom: 15px; animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        .notification-btn { position: absolute; top: 20px; left: 20px; z-index: 100; width: 45px; height: 45px; border-radius: 50%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.1); cursor: pointer; color: #64748b; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid rgba(255, 255, 255, 0.5); }
+        .notification-btn:active { transform: scale(0.9); }
+        .notification-btn.has-alert { color: #ef4444; background: #fff1f2; border-color: #fecaca; animation: shake-bell 2s infinite; }
+        .notification-badge { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; background: #ef4444; border-radius: 50%; border: 2px solid #fff; display: none; }
+        .notification-btn.has-alert .notification-badge { display: block; }
+        .notification-btn.locked::after { content: '\f023'; font-family: 'Font Awesome 6 Free'; font-weight: 900; position: absolute; bottom: -5px; right: -5px; font-size: 12px; background: #334155; color: white; width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; }
+        @keyframes shake-bell { 0% { transform: rotate(0); } 10% { transform: rotate(15deg); } 20% { transform: rotate(-15deg); } 30% { transform: rotate(10deg); } 40% { transform: rotate(-10deg); } 50% { transform: rotate(0); } 100% { transform: rotate(0); } }
+
+        .info-bar { display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; direction: ltr; }
+        .info-pill { background: #f1f5f9; color: var(--text-sub); padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+        .info-pill span { font-family: 'Outfit', sans-serif !important; } 
+        
+        h1 { font-size: 22px; font-weight: 900; margin-bottom: 5px; color: #0f172a; }
+        
+        .smart-title { 
+            background: linear-gradient(to right, #0ea5e9, #0284c7); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            font-size: 34px; 
+            font-weight: 700; 
+            margin-bottom: 10px; 
+            text-shadow: 0px 5px 15px rgba(14, 165, 233, 0.3);
+            font-family: 'Reem Kufi', sans-serif; 
+            letter-spacing: -1px;
+        }
+
+        .academic-footer { margin-top: auto; padding-top: 20px; display: flex; justify-content: center; width: 100%; position: relative; z-index: 5; }
+        .faculty-title-box { display: inline-block; margin-bottom: 15px; padding: 8px 20px; border-radius: 50px; background: linear-gradient(135deg, rgba(224, 242, 254, 0.6), rgba(240, 249, 255, 0.4)); border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 10px rgba(14, 165, 233, 0.05); backdrop-filter: blur(5px); }
+        .faculty-title-text { font-size: 14px; font-weight: 800; background: linear-gradient(135deg, var(--primary-dark), var(--primary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: block; }
+        p { font-size: 13px; color: var(--text-sub); margin-bottom: 25px; line-height: 1.6; }
+        
+        .btn-main { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; width: 100%; padding: 15px; border-radius: 20px; font-size: 16px; font-weight: 800; border: none; cursor: pointer; font-family: 'Cairo'; box-shadow: 0 8px 25px -5px rgba(14, 165, 233, 0.5); transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); display: flex; align-items: center; justify-content: center; gap: 10px; position: relative; z-index: 5; margin-bottom: 20px; }
+        .btn-main:active { transform: scale(0.97); }
+        .btn-main:disabled { background: #64748b; cursor: not-allowed; opacity: 0.7; box-shadow: none; pointer-events: none; }
+        
+        .admin-controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+        
+        .admin-sub-btn { 
+            border-radius: 18px; padding: 10px 8px; font-size: 12px; font-weight: 800; 
+            border: 1px solid rgba(14, 165, 233, 0.3); 
+            cursor: pointer; font-family: 'Cairo'; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; 
+            box-shadow: 0 4px 12px -2px rgba(14, 165, 233, 0.1); height: 75px; 
+            position: relative; overflow: hidden; 
+            color: var(--primary-dark); 
+            background: rgba(14, 165, 233, 0.08); 
+        }
+        .admin-sub-btn:active { transform: scale(0.95); background: rgba(14, 165, 233, 0.15); box-shadow: none; }
+        
+        .btn-admin-login, .btn-report, .btn-exams, .btn-refresh, .btn-data-entry {
+            background: linear-gradient(135deg, rgba(224, 242, 254, 0.5), rgba(186, 230, 253, 0.5));
+        }
+
+        .btn-admin-logout { 
+            background: linear-gradient(135deg, #38bdf8, #0284c7); 
+            color: white; border: none; 
+        } 
+        
+        .btn-report.unlocked { background: rgba(14, 165, 233, 0.1); border: 1px solid #bae6fd; color: var(--primary-dark); }
+        .btn-report.locked { background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; cursor: not-allowed; box-shadow: none; }
+        
+        .btn-exams { grid-column: span 2; flex-direction: row; height: 50px; margin-top: 5px; }
+        .btn-refresh { grid-column: span 2; border-radius: 50px; width: 50px; height: 50px; justify-self: center; margin-top: 5px; }
+        .btn-refresh:active { transform: rotate(180deg) scale(0.9); transition: 0.4s; }
+        .btn-data-entry { grid-column: span 2; margin-top: 5px; height: 50px; flex-direction: row; }
+
+        .sub-btn-icon { font-size: 20px; margin-bottom: 2px; text-shadow: none; color: var(--primary); }
+        .btn-exams .sub-btn-icon, .btn-refresh .sub-btn-icon, .btn-data-entry .sub-btn-icon { margin-bottom: 0; font-size: 18px; }
+        
+        .btn-back-modern { background: rgba(255, 255, 255, 0.9); color: var(--text-main); width: 100%; padding: 12px; border-radius: 15px; font-size: 14px; font-weight: 700; border: 1px solid #e2e8f0; cursor: pointer; font-family: 'Cairo'; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; }
+        .btn-back-modern:active { transform: scale(0.97); background: #f8fafc; }
+
+        .btn-verify-identity { background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; width: 100%; padding: 15px; border-radius: 16px; border: none; font-size: 14px; font-weight: 800; font-family: 'Cairo'; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; box-shadow: 0 8px 20px -5px rgba(99, 102, 241, 0.4); transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; z-index: 10; }
+        .btn-verify-identity:active { transform: scale(0.97); }
+        .btn-verify-identity.disabled { background: #10b981; pointer-events: none; opacity: 0.8; }
+        .btn-verify-identity i { font-size: 18px; }
+        
+        .cam-container { width: 220px; height: 220px; margin: 10px auto; border-radius: 50%; background: #f8fafc; overflow: hidden; border: 5px solid #e2e8f0; position: relative; transition: border-color 0.3s; }
+        #video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .spinner-overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(255, 255, 255, 0.95); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
+        .spinner { border: 4px solid rgba(14, 165, 233, 0.2); border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
+        .large-loader-icon { font-size: 50px; color: var(--primary); margin-bottom: 10px; filter: drop-shadow(0 4px 8px rgba(14, 165, 233, 0.4)); }
+        .timer-circular-wrapper { position: absolute; top:0; left:0; width:100%; height:100%; display: none; align-items: center; justify-content: center; z-index: 10; }
+        .timer-svg-face { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .timer-circle-bg-face { fill: none; stroke: rgba(255, 255, 255, 0.3); stroke-width: 5; }
+        .timer-circle-fg-face { fill: none; stroke: #10b981; stroke-width: 5; stroke-dasharray: 282.7; stroke-dashoffset: 282.7; transition: stroke-dashoffset 0.1s linear, stroke 0.3s; stroke-linecap: round; }
+        .timer-number-face { font-size: 50px; font-weight: 900; color: #1e293b; text-shadow: 0 0 10px rgba(255,255,255,0.8); font-family: 'Outfit', sans-serif; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .alert-badge { background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; position: absolute; top: 15px; left: 50%; transform: translateX(-50%); display: none; white-space: nowrap; z-index: 20; box-shadow: 0 5px 10px rgba(0,0,0,0.3); animation: shake 0.4s; }
+        .status-ok { border-color: #10b981 !important; box-shadow: 0 0 15px #10b981; }
+        .status-wait { border-color: #f59e0b !important; box-shadow: 0 0 15px #f59e0b; }
+        .status-error { border-color: #ef4444 !important; box-shadow: 0 0 15px #ef4444; }
+        
+        #reportModal .modal-box, #manageHallsModal .modal-box, #manageSubjectsModal .modal-box, #dataEntryModal .modal-box { max-width: 400px; height: 85vh; padding: 0; background: #f8fafc; display: flex; flex-direction: column; overflow: hidden; }
+        
+        .report-modal-header { padding: 15px 20px; background: white; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; z-index: 20; }
+        .report-modal-footer { padding: 15px 20px; background: white; border-top: 1px solid #e2e8f0; z-index: 10; }
+        .btn-icon-danger { width: 40px; height: 40px; border-radius: 50%; border: none; background: #fee2e2; color: #ef4444; font-size: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; }
+        .btn-icon-danger:hover { background: #ef4444; color: white; transform: rotate(15deg); }
+        .report-views-container { flex: 1; position: relative; overflow: hidden; width: 100%; }
+        .report-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow-y: auto; padding: 15px; transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1); background: #f8fafc; }
+        
+        #viewSubjects { transform: translateX(0); z-index: 10; }
+        #viewStudents { transform: translateX(100%); z-index: 20; background: #f8fafc; }
+        
+        .slide-out { transform: translateX(100%) !important; }
+        .slide-in { transform: translateX(0) !important; }
+        
+        .subject-big-card { background: white; border-radius: 20px; padding: 20px; margin-bottom: 15px; cursor: pointer; border: 1px solid #e2e8f0; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); display: flex; align-items: center; justify-content: space-between; transition: 0.2s; position: relative; overflow: hidden; }
+        .subject-big-card:active { transform: scale(0.98); background: #f0f9ff; }
+        .subject-big-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--primary); border-radius: 4px 0 0 4px; }
+        
+        .sub-card-info h3 { font-size: 16px; font-weight: 800; color: #1e293b; margin-bottom: 5px; }
+        .sub-card-info span { font-size: 12px; color: #64748b; font-weight: 600; }
+        .sub-arrow { width: 40px; height: 40px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); }
+        .students-list-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: white; padding: 10px; border-radius: 12px; border: 1px solid #e2e8f0; }
+        .btn-back-report { width: 35px; height: 35px; border-radius: 10px; border: none; background: #f1f5f9; color: #475569; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .student-detailed-card { background: white; border-radius: 14px; padding: 15px; margin-bottom: 10px; border: 1px solid #f1f5f9; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.03); display: flex; justify-content: space-between; align-items: center; }
+        .student-detailed-card.alert-row { background: #fff5f5; border: 1px solid #fecaca; }
+        /* === إضافة ستايل التحديد الجديد === */
+        .student-detailed-card.highlighted-red { background: #fee2e2 !important; border: 1px solid #ef4444 !important; }
+        .student-detailed-card.alert-row .st-name { color: #b91c1c; }
+        .st-data-col { display: flex; flex-direction: column; gap: 4px; text-align: right; }
+        .st-name { font-weight: 800; font-size: 13px; color: #1e293b; cursor: pointer; transition: 0.2s; }
+        .st-name:active { color: var(--primary); transform: scale(0.98); }
+        
+        .std-time-badge { background: #ecfdf5; color: #059669; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; direction: ltr; }
+        .std-time-badge span { font-family: 'Outfit', sans-serif !important; }
+        .std-hall-badge { background: #f0f9ff; color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; margin-left: 5px; }
+        .std-hall-badge span { font-family: 'Outfit', sans-serif !important; }
+        .st-detail-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #475569; margin-top: 2px; }
+        .btn-delete-item { width: 38px; height: 38px; background: #fff1f2; color: #f43f5e; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px; flex-shrink: 0; margin-right: 10px; }
+        .btn-delete-item:active { transform: scale(0.9); background: #f43f5e; color: white; }
+        /* === زر التحديد الجديد === */
+        .btn-highlight-item { width: 38px; height: 38px; background: #fff7ed; color: #f97316; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-size: 14px; flex-shrink: 0; margin-left: 5px; }
+        .btn-highlight-item:active { transform: scale(0.9); background: #f97316; color: white; }
+
+        .btn-refresh-list { background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; width: 100%; padding: 14px; border-radius: 16px; font-weight: 800; border: none; cursor: pointer; font-family: 'Cairo'; box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3); display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; }
+        .btn-refresh-list:active { transform: scale(0.98); }
+        .btn-close-stylish { background: #f1f5f9; color: #475569; width: 100%; padding: 12px; border-radius: 16px; font-weight: 700; border: 1px solid #e2e8f0; cursor: pointer; font-family: 'Cairo'; font-size: 13px; }
+        #examModal .modal-box { border: 2px solid #ddd6fe; background: #ffffff; }
+        .exam-loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid #7c3aed; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 15px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .input-group { margin-bottom: 15px; text-align: right; position: relative; z-index: 5; }
+        .modern-input { width: 100%; padding: 12px 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-family: 'Outfit', sans-serif !important; font-size: 14px; outline: none; transition: 0.3s; background: #f8fafc; }
+        .modern-input:focus { border-color: var(--primary); background: white; }
+        .modern-input.locked { background: #f1f5f9; color: #64748b; text-align: center; font-weight: bold; cursor: not-allowed; letter-spacing: 1px; }
+        
+        #adminPassword {
+            background: rgba(255, 255, 255, 0.9);
+            border: none;
+            border-bottom: 2px solid #0ea5e9;
+            border-radius: 10px;
+            padding: 15px;
+            font-size: 18px;
+            text-align: center;
+            letter-spacing: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            color: #334155;
+            font-weight: 900;
+            width: 100%;
+        }
+        #adminPassword:focus {
+            background: #fff;
+            box-shadow: 0 10px 25px rgba(14, 165, 233, 0.2);
+            transform: scale(1.02);
+            outline: none;
+        }
+
+        .custom-select-wrapper { position: relative; user-select: none; width: 100%; margin-bottom: 20px; -webkit-tap-highlight-color: transparent; }
+        .custom-select-label { display: block; text-align: right; margin-bottom: 8px; font-size: 13px; color: #475569; font-weight: 800; margin-right: 5px; }
+        .custom-select-trigger { position: relative; display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 18px 20px; font-size: 15px; font-weight: 700; color: #334155; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 20px; cursor: pointer; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); }
+        .custom-select-trigger:active { transform: scale(0.98); }
+        .custom-select-wrapper.open .custom-select-trigger { border-color: var(--primary); box-shadow: 0 10px 15px -3px rgba(14, 165, 233, 0.15); background: #f0f9ff; }
+        .trigger-content { display: flex; align-items: center; gap: 12px; }
+        .trigger-icon { width: 32px; height: 32px; background: #f1f5f9; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; transition: 0.3s; }
+        .custom-select-wrapper.open .trigger-icon { background: var(--primary); color: white; }
+        .arrow-icon { font-size: 12px; color: #94a3b8; transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
+        .custom-select-wrapper.open .arrow-icon { transform: rotate(180deg); color: var(--primary); }
+        .custom-options-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); z-index: 99990; opacity: 0; visibility: hidden; pointer-events: none; transition: all 0.3s; }
+        .custom-select-wrapper.open .custom-options-overlay { opacity: 1; visibility: visible; pointer-events: all; }
+        .custom-options { position: fixed; bottom: 0; left: 0; right: 0; background: #ffffff; border-radius: 30px 30px 0 0; padding: 25px 20px 40px 20px; z-index: 99999; box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.1); transform: translateY(100%); visibility: hidden; pointer-events: none; transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1), visibility 0.4s; max-height: 70vh; overflow-y: auto; }
+        .custom-select-wrapper.open .custom-options { transform: translateY(0); visibility: visible; pointer-events: all; }
+        .sheet-handle { width: 40px; height: 5px; background: #e2e8f0; border-radius: 10px; margin: 0 auto 20px auto; }
+        .options-title { text-align: center; font-weight: 800; color: #1e293b; margin-bottom: 20px; font-size: 16px; border-bottom: 1px solid #f1f5f9; padding-bottom: 15px; }
+        .custom-option { padding: 16px 20px; margin-bottom: 10px; font-size: 15px; font-weight: 700; color: #475569; border-radius: 16px; border: 1px solid transparent; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+        .custom-option span { font-family: 'Cairo', sans-serif; }
+        .custom-option:hover { background: #f1f5f9; }
+        .custom-option.selected { background: #ecfdf5; color: #059669; border-color: #d1fae5; }
+        .custom-option.selected::after { content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900; background: #10b981; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .custom-select-wrapper.disabled { opacity: 0.5; pointer-events: none; filter: grayscale(100%); }
+        .ticket-container { background: white; border-radius: 24px; position: relative; overflow: hidden; box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1); margin-bottom: 25px; border: 1px solid #f1f5f9; }
+        .ticket-container::before, .ticket-container::after { content: ''; position: absolute; top: 110px; width: 24px; height: 24px; background: #f0f9ff; border-radius: 50%; z-index: 20; }
+        .ticket-container::before { left: -12px; } .ticket-container::after { right: -12px; }
+        .ticket-header { background: linear-gradient(135deg, #10b981, #059669); padding: 20px; text-align: center; color: white; position: relative; }
+        .ticket-icon { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px auto; font-size: 24px; border: 2px solid rgba(255, 255, 255, 0.4); }
+        .ticket-body { padding: 25px 20px; position: relative; }
+        .ticket-dashed-line { border-top: 2px dashed #cbd5e1; margin-bottom: 20px; width: 100%; height: 1px; }
+        .t-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .t-row:last-child { margin-bottom: 0; }
+        .t-label { font-size: 11px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .t-value { font-size: 14px; font-weight: 700; color: #1e293b; }
+        .english-num { font-family: 'Outfit', sans-serif !important; direction: ltr !important; letter-spacing: 0.5px; font-weight: 700; }
+        .verified-badge { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%) rotate(-15deg); border: 2px solid #10b981; color: #10b981; padding: 5px 15px; font-size: 16px; font-weight: 900; border-radius: 8px; opacity: 0; font-family: 'Outfit', sans-serif; letter-spacing: 2px; animation: stampEffect 0.6s 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; pointer-events: none; }
+        .circular-timer { position: relative; width: 80px; height: 80px; margin: 0 auto 15px auto; display: flex; align-items: center; justify-content: center; }
+        .timer-svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .timer-circle-bg { fill: none; stroke: #f1f5f9; stroke-width: 6; }
+        .timer-circle-fg { fill: none; stroke: #10b981; stroke-width: 6; stroke-dasharray: 220; stroke-dashoffset: 0; transition: stroke-dashoffset 0.1s linear, stroke 0.3s; stroke-linecap: round; }
+        .timer-text-box { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .timer-number { font-size: 20px; font-weight: 900; color: #334155; line-height: 1; font-family: 'Outfit', sans-serif !important; }
+        .timer-label { font-size: 9px; color: #94a3b8; font-weight: 700; }
+        .timer-pulse { animation: pulse-red 1s infinite; }
+        .student-info-card { background: linear-gradient(135deg, #f8fafc, #e0f2fe); border-radius: 20px; padding: 25px; margin-bottom: 25px; box-shadow: 0 10px 30px -10px rgba(14, 165, 233, 0.2); border: 1px solid #bae6fd; text-align: right; position: relative; overflow: hidden; }
+        .student-info-card::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0) 70%); opacity: 0.5; pointer-events: none; }
+        .student-info-item { margin-bottom: 15px; position: relative; padding-right: 45px; z-index: 2; }
+        .student-info-item:last-child { margin-bottom: 0; }
+        .student-info-icon { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 35px; height: 35px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 4px 10px rgba(14, 165, 233, 0.3); }
+        .student-info-label { font-size: 12px; color: var(--text-sub); font-weight: 700; display: block; margin-bottom: 4px; }
+        .student-info-value { font-size: 18px; font-weight: 900; color: var(--text-main); display: block; }
+        #scanIDDisplay { color: var(--primary-dark); letter-spacing: 1px; font-family: 'Outfit', sans-serif !important; }
+        .qr-card-trigger { background: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 20px; padding: 30px 20px; text-align: center; cursor: pointer; transition: 0.3s; margin-bottom: 15px; display: flex; flex-direction: column; align-items: center; gap: 15px; }
+        .qr-card-trigger:hover { background: #f1f5f9; border-color: var(--primary); }
+        .qr-card-icon { width: 60px; height: 60px; background: #e0f2fe; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; animation: pulse-blue 2s infinite; }
+        .qr-card-text { font-weight: 700; color: var(--text-main); font-size: 14px; }
+        .qr-card-sub { font-size: 11px; color: #94a3b8; }
+        #qr-reader { width: 100%; border-radius: 24px; overflow: hidden; margin-bottom: 15px; display: none; position: relative; background: black; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2); border: 0; }
+        #qr-reader video { object-fit: cover; border-radius: 24px; }
+        .scan-btn { background: #3b82f6; color: white; width: 100%; padding: 12px; border-radius: 12px; border: none; font-family: 'Cairo'; font-weight: 700; cursor: pointer; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3); }
+        .scan-btn.scanned { background: #10b981; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3); pointer-events: none; }
+        .scanner-laser { position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(to right, transparent, #ef4444, transparent); box-shadow: 0 0 4px #ef4444; z-index: 10; animation: scanning 2s infinite alternate; display: none; }
+        .scan-success-badge { background: #ecfdf5; color: #10b981; border: 1px solid #d1fae5; padding: 15px; border-radius: 15px; font-weight: 700; font-size: 14px; display: none; align-items: center; justify-content: center; gap: 10px; margin-bottom: 15px; animation: popUp 0.4s; }
+        
+        /* تعديل المودال ليكون أكثر أناقة */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 99999999; display: none; align-items: center; justify-content: center; backdrop-filter: blur(8px); animation: fadeIn 0.3s ease-out; }
+        .modal-box { 
+            background: rgba(255, 255, 255, 0.95); 
+            width: 85%; max-width: 320px; padding: 30px 25px; border-radius: 24px; text-align: center; 
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2); transform: scale(0.9); animation: popUp 0.3s; 
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        
+        #locationForceModal { z-index: 999999999 !important; background: rgba(15, 23, 42, 0.8); }
+        #locationForceModal .modal-box { border: none; background: white; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); }
+        #locationForceModal i { color: #f59e0b !important; font-size: 45px; margin-bottom: 20px; }
+        
+        .modal-title { font-size: 18px; font-weight: 900; margin-bottom: 10px; color: var(--text-main); }
+        .modal-text { font-size: 14px; color: var(--text-sub); margin-bottom: 25px; line-height: 1.5; font-weight: 600; }
+        .modal-actions { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn { flex: 1; padding: 14px; border-radius: 16px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; font-family: 'Cairo'; transition: 0.2s; }
+        .btn-confirm { background: #ef4444; color: white; }
+        .btn-success-modal { background: #10b981; color: white; }
+        .btn-cancel { background: #f1f5f9; color: #475569; }
+        /* MODERN CANCEL BUTTON */
+        .btn-cancel-modern { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 15px; padding: 12px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.2s; }
+        .btn-cancel-modern:hover { background: #e2e8f0; color: #334155; }
+        
+        #connectionLostModal { z-index: 20000 !important; }
+        #connectionLostModal .modal-box { border: 2px solid #ef4444; position: relative; }
+        .btn-close-modal-x { position: absolute; top: 15px; left: 15px; width: 30px; height: 30px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #94a3b8; font-weight: bold; border: none; }
+        .uni-watermark { display: none; }
+        #screenWelcome { padding-bottom: 120px; }
+        .admin-badge { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 5px 15px; border-radius: 20px; font-size: 10px; font-weight: bold; box-shadow: 0 2px 10px rgba(239, 68, 68, 0.3); z-index: 100; display: none; }
+        .section { display: none; opacity: 0; transition: opacity 0.3s ease; width: 100%; } .section.active { display: block; opacity: 1; animation: fadeIn 0.5s; }
+        .card-body-content { position: relative; min-height: 500px; z-index: 5; }
+        #identityAlertModal .modal-box { border: 0; border-top: 5px solid #f59e0b; border-radius: 30px; padding: 35px 25px; }
+        .alert-header-icon { width: 80px; height: 80px; background: #fffbeb; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; font-size: 35px; color: #f59e0b; box-shadow: 0 10px 25px rgba(245, 158, 11, 0.2); }
+        .alert-details-container { background: #f8fafc; border-radius: 20px; padding: 20px; margin-top: 15px; text-align: right; border: 1px solid #e2e8f0; }
+        .ad-row { display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 10px; }
+        .ad-row:last-child { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
+        .ad-label { font-size: 12px; color: #64748b; font-weight: 700; }
+        .ad-val { font-size: 13px; color: #1e293b; font-weight: 900; }
+        .alert-reason-box { margin-top: 20px; background: #fef2f2; border-radius: 15px; padding: 15px; border: 1px solid #fee2e2; text-align: center; }
+        .arb-title { display: block; font-size: 11px; font-weight: 800; color: #991b1b; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }
+        .arb-text { font-size: 13px; font-weight: 700; color: #ef4444; line-height: 1.5; }
+        .unread-alert { background-color: #fff1f2 !important; border-left: 4px solid #ef4444; }
+        .read-alert { opacity: 0.8; background-color: #fff; }
+        .admin-floating-back { position: fixed; bottom: 30px; right: 30px; width: 50px; height: 50px; background: rgba(255, 255, 255, 0.9); color: #475569; border-radius: 50%; display: none; align-items: center; justify-content: center; box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15); border: 1px solid #e2e8f0; z-index: 1000; cursor: pointer; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .admin-floating-back:active { transform: scale(0.9); }
+        .admin-floating-back i { font-size: 20px; }
+        .custom-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 15px; direction: ltr; position: relative; z-index: 10; width: 100%; }
+        .key-btn { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0; height: 60px; font-size: 24px; font-weight: 700; color: #334155; box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.05); cursor: pointer; transition: all 0.1s; font-family: 'Outfit', sans-serif !important; display: flex; justify-content: center; align-items: center; }
+        .key-btn:active { transform: scale(0.95); background: #f1f5f9; box-shadow: none; }
+        .key-btn.action-btn { background: #f8fafc; color: #64748b; font-family: 'Cairo', sans-serif !important; }
+        .key-btn.delete-btn { color: #ef4444; background: #fef2f2; border-color: #fecaca; }
+        .search-box-wrapper { position: relative; margin-bottom: 15px; }
+        .search-box-wrapper i { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        #studentSearchInput, #alertSearchInput { padding-right: 40px; border-radius: 20px; background: #f1f5f9; border: 1px solid #e2e8f0; width: 100%; padding: 12px 40px 12px 15px; font-family: 'Cairo'; font-size: 14px; outline: none; }
+        #notificationBtn { position: absolute; top: 35px; left: 35px; z-index: 500; width: 50px; height: 50px; border-radius: 50%; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; box-shadow: 0 5px 15px rgba(0,0,0,0.1); cursor: pointer; color: #64748b; transition: all 0.3s ease; font-size: 22px; }
+        #notificationBtn.has-alert { color: #ef4444; background: #fff1f2; animation: pulse-red 2s infinite; }
+        #modernConfirmModal { z-index: 2147483647 !important; }
+        .attempts-hearts { display: flex; gap: 5px; align-items: center; justify-content: center; background: rgba(255,255,255,0.8); padding: 8px 15px; border-radius: 20px; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .heart-icon { font-size: 18px; color: #ef4444; transition: 0.3s; }
+        .heart-icon.lost { color: #cbd5e1; }
+        .hall-search-box { padding: 10px 15px; border-bottom: 1px solid #f1f5f9; background: white; position: sticky; top: 0; z-index: 10; }
+        .hall-search-input { width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: 'Cairo'; font-size: 13px; outline: none; background: #f8fafc; }
+        .add-hall-btn { width: 100%; padding: 10px; margin-top: 10px; background: #ecfdf5; color: #059669; border: 1px dashed #10b981; border-radius: 12px; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .list-item-manage { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #f1f5f9; background: white; }
+        .list-item-manage:last-child { border-bottom: none; }
+        .btn-delete-mini { width: 30px; height: 30px; background: #fee2e2; color: #ef4444; border: none; border-radius: 8px; cursor: pointer; }
+        #deleteAlertsConfirmModal .modal-box { border: 2px solid #fecaca; background: #fff1f2; }
+        .delete-icon-animate { font-size: 50px; color: #ef4444; margin-bottom: 15px; animation: pulse-red 2s infinite; }
+        .btn-delete-confirm { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4); }
+        @keyframes pulse-red { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        @keyframes beat { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        @keyframes popUp { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes scanning { 0% { top: 10%; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { top: 90%; opacity: 0; } }
+        @keyframes stampEffect { 0% { opacity: 0; transform: translateX(-50%) rotate(0deg) scale(2); } 100% { opacity: 0.4; transform: translateX(-50%) rotate(-15deg) scale(1); } }
+        
+        /* تعديل 4: مودال التجاوز الأنيق */
+        #bypassModal .modal-box { border-top: 5px solid #10b981; }
+        .bypass-icon { font-size: 50px; color: #10b981; margin-bottom: 15px; animation: popUp 0.5s; }
+        
+        /* تعديل 2: مودال انتهاء الوقت والحظر */
+        #timeoutModal .modal-box { border-bottom: 5px solid #ef4444; }
+        
+        /* تعديل 6: مودال التكرار */
+        #duplicateModal .modal-box { border-top: 5px solid #f59e0b; }
+
+        /* === Styles for Evaluation Modal === */
+        /* Z-INDEX FIX: أعلى من التقرير */
+        #evaluationModal { z-index: 2147483647 !important; }
+        .slider-container { margin: 20px 0; padding: 10px; background: #f8fafc; border-radius: 15px; }
+        .range-slider { width: 100%; -webkit-appearance: none; height: 10px; border-radius: 5px; background: #e2e8f0; outline: none; transition: background 0.3s; }
+        .range-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 25px; height: 25px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 3px solid #fff; box-shadow: 0 0 10px rgba(0,0,0,0.1); transition: 0.2s; }
+        .range-slider::-webkit-slider-thumb:hover { transform: scale(1.1); }
+        .eval-emoji { font-size: 60px; margin-bottom: 5px; display: block; animation: popUp 0.3s; transition: 0.2s; }
+        .eval-badge { font-size: 10px; background: #fef3c7; color: #d97706; padding: 2px 6px; border-radius: 4px; margin-right: 5px; display: inline-block; font-weight: bold; }
+        #sliderValue { font-weight: 800; color: #334155; margin-top: 10px; font-size: 18px; }
+        
+        /* MODERN CANCEL BUTTON FOR EVALUATION */
+        .btn-cancel-modern { background: #f1f5f9; color: #64748b; border: 1px solid #cbd5e1; border-radius: 15px; padding: 12px; width: 100%; font-weight: bold; margin-top: 10px; cursor: pointer; transition: 0.2s; }
+        .btn-cancel-modern:hover { background: #e2e8f0; color: #334155; }
+
+        /* NEW TOTAL SCORE DISPLAY */
+        .total-score-display { background: #f1f5f9; padding: 10px; border-radius: 12px; margin-bottom: 15px; font-weight: bold; color: #334155; display: flex; justify-content: space-between; font-size: 13px; border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body>
+    <div id="topToast"></div>
+    <div id="verificationSuccessModal" class="modal-overlay" style="z-index: 999999;">
+        <div class="modal-box">
+            <i class="fa-solid fa-check-circle success-icon-large"></i>
+            <div class="modal-title" style="color: #10b981; font-size: 16px;">تم التحقق</div>
+            <div class="modal-text" style="font-weight:bold; color:#64748b; font-size: 13px;">جاري الفحص...</div>
+            <div style="margin-top:15px;"><i class="fa-solid fa-circle-notch fa-spin" style="color:var(--primary);"></i></div>
+        </div>
+    </div>
+    
+    <div id="bypassModal" class="modal-overlay" style="z-index: 999999;">
+        <div class="modal-box">
+            <i class="fa-solid fa-user-check bypass-icon"></i>
+            <div class="modal-title" style="color: #10b981;">تم تجاوز التحقق</div>
+            <div class="modal-text">أنت الآن في وضع المسؤول اليدوي.<br><small style="color:#ef4444;">تم تخطي بصمة الوجه والموقع الجغرافي</small></div>
+        </div>
+    </div>
+    
+    <div id="duplicateModal" class="modal-overlay" style="z-index: 999999;">
+        <div class="modal-box">
+            <i class="fa-solid fa-triangle-exclamation" style="font-size:45px; color:#f59e0b; margin-bottom:15px;"></i>
+            <div class="modal-title" style="color: #f59e0b;">تنبيه</div>
+            <div class="modal-text">لقد قمت بتسجيل الحضور مسبقاً في هذا المقرر اليوم.</div>
+            <button onclick="document.getElementById('duplicateModal').style.display='none'" class="modal-btn btn-confirm" style="background:#334155;">حسناً</button>
+        </div>
+    </div>
+
+    <div id="evaluationModal" class="modal-overlay">
+        <div class="modal-box" style="border-top: 5px solid #ef4444;">
+            <div class="modal-title" style="color: #ef4444;">تقييم عدم الانضباط</div>
+            <p id="evalStudentName" style="font-weight:bold; color:#64748b; margin-bottom:15px;">--</p>
+            
+            <div class="total-score-display">
+                <span>المجموع الكلي للمخالفات:</span>
+                <span id="evalCurrentTotal" class="en-font" style="color:#ef4444;">0</span>
+            </div>
+
+            <div id="emojiDisplay" class="eval-emoji">😐</div>
+            
+            <div class="slider-container">
+                <input type="range" min="1" max="10" value="5" class="range-slider" id="behaviorSlider" oninput="updateSliderUI(this.value)">
+                <div id="sliderValue">درجة الانضباط (5/10)</div>
+            </div>
+            
+            <button onclick="saveEvaluation()" class="btn-main" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">حفظ المخالفة <i class="fa-solid fa-triangle-exclamation"></i></button>
+            <button onclick="closeEvaluation()" class="btn-cancel-modern">إلغاء</button>
+        </div>
+    </div>
+
+    <div id="desktop-blocker">
+        <i class="fa-solid fa-mobile-screen-button" style="font-size:50px; margin-bottom:20px;"></i>
+        <h2 style="margin-bottom:10px">عذراً، وصول غير مصرح به</h2>
+        <p>النظام متاح فقط من هواتف Android و iPhone الذكية.</p>
+    </div>
+
+    <div id="locationForceModal" class="modal-overlay" style="display:none;">
+        <div class="modal-box">
+            <div style="position:absolute; top:15px; left:15px;">
+                <button onclick="document.getElementById('locationForceModal').style.display='none'" style="background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <i class="fa-solid fa-location-dot fa-bounce"></i>
+            <div class="modal-title">تفعيل الموقع</div>
+            <div class="modal-text">يرجى تفعيل خدمة GPS للمتابعة.</div>
+        </div>
+    </div>
+
+    <div class="bg-image"></div>
+    <audio id="successSound" src="https://www.soundjay.com/buttons/sounds/button-3.mp3"></audio>
+    <audio id="clickSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
+    <audio id="beepSound" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
+
+    <div id="customLogoutModal" class="modal-overlay">
+        <div class="modal-box">
+            <i class="fa-solid fa-arrow-right-from-bracket" style="font-size: 40px; color: #ef4444; margin-bottom: 15px;"></i>
+            <div class="modal-title">تسجيل الخروج</div>
+            <div class="modal-text">هل تريد الخروج من وضع المسؤول؟</div>
+            <div class="modal-actions">
+                <button onclick="performLogout()" class="modal-btn btn-confirm">نعم</button>
+                <button onclick="closeLogoutModal()" class="modal-btn btn-cancel">إلغاء</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="banModal" class="modal-overlay" style="z-index: 100000;">
+        <div class="modal-box" style="border: 2px solid #ef4444;">
+            <i class="fa-solid fa-ban" style="font-size: 50px; color: #ef4444; margin-bottom: 15px;"></i>
+            <div class="modal-title" style="color: #ef4444;">تم حظرك</div>
+            <div class="modal-text" style="font-weight: bold;">لقد استنفذت محاولاتك (3 مرات) أو تم اكتشاف تكرار في البيانات.</div>
+            <button onclick="location.reload()" class="modal-btn btn-confirm" style="margin-top: 10px;">إغلاق</button>
+        </div>
+    </div>
+    
+    <div id="timeoutModal" class="modal-overlay" style="z-index: 200000;">
+        <div class="modal-box">
+            <i class="fa-solid fa-hourglass-end" style="font-size: 50px; color: #ef4444; margin-bottom: 15px; animation: pulse-red 2s infinite;"></i>
+            <div class="modal-title" style="color: #ef4444;">انتهى الوقت</div>
+            <div class="modal-text" style="font-weight: bold; font-size: 15px; color: #1e293b;" id="timeoutMessage">
+                في المرة القادمة سيتم حظرك
+            </div>
+            <button onclick="closeTimeoutModal()" class="modal-btn btn-confirm" style="background: #334155; margin-top:10px;">حسناً</button>
+        </div>
+    </div>
+    
+    <div id="identityAlertModal" class="modal-overlay" style="z-index: 99999999;">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <div class="modal-title" style="color:#b45309; margin:0;">تنبيهات النظام</div>
+                <div id="adminDeleteAlert" style="display:none; width:35px; height:35px; background:#fee2e2; border-radius:50%; align-items:center; justify-content:center; cursor:pointer; color:#ef4444;" onclick="openDeleteAlertsConfirm()">
+                    <i class="fa-solid fa-trash-can"></i>
+                </div>
+            </div>
+            
+            <div class="search-box-wrapper">
+                <i class="fa-solid fa-search"></i>
+                <input type="text" id="alertSearchInput" placeholder="بحث في التنبيهات..." onkeyup="filterAlerts()">
+            </div>
+
+            <div id="alertsListContainer" style="max-height:300px; overflow-y:auto; margin-bottom:15px;">
+                <div class="empty-state" style="padding:15px; font-size:12px;">لا توجد تنبيهات مسجلة.</div>
+            </div>
+            
+            <button onclick="closeIdentityAlert()" class="modal-btn btn-confirm" style="background:#334155; width:100%;">إغلاق</button>
+        </div>
+    </div>
+    
+    <div id="deleteAlertsConfirmModal" class="modal-overlay" style="z-index: 999999999;">
+        <div class="modal-box">
+            <i class="fa-solid fa-triangle-exclamation delete-icon-animate"></i>
+            <div class="modal-title" style="color: #ef4444;">حذف الكل؟</div>
+            <div class="modal-text">هل أنت متأكد من حذف جميع التنبيهات؟ لا يمكن التراجع عن هذا الإجراء.</div>
+            <div class="modal-actions">
+                <button onclick="confirmClearNotifications()" class="modal-btn btn-delete-confirm">نعم، حذف</button>
+                <button onclick="closeDeleteAlertsConfirm()" class="modal-btn btn-cancel">تراجع</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="adminSuccessModal" class="modal-overlay" style="z-index: 99999;">
+        <div class="modal-box">
+            <i class="fa-solid fa-user-shield admin-success-icon"></i>
+            <div class="modal-title" style="color: #10b981;">تم التفعيل بنجاح</div>
+            <div class="modal-text">أهلاً بك في لوحة تحكم المسؤول.</div>
+        </div>
+    </div>
+    
+    <div id="modernConfirmModal" class="modal-overlay" style="z-index: 99999;">
+        <div class="modal-box confirm-box-style">
+            <div class="confirm-icon-animate">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div class="modal-title" id="modernConfirmTitle">تأكيد الحذف</div>
+            <div class="modal-text" id="modernConfirmText">هل أنت متأكد من إتمام هذه العملية؟</div>
+            <div class="modal-actions">
+                <button id="btnConfirmYes" class="modal-btn btn-confirm-modern">نعم، احذف</button>
+                <button onclick="closeModernConfirm()" class="modal-btn btn-cancel-modern">تراجع</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="dataEntryModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="report-modal-header">
+                <div class="modal-title" style="margin:0; font-size:16px;">قائمة إدخال البيانات</div>
+                <button onclick="document.getElementById('dataEntryModal').style.display='none'" class="btn-close-stylish" style="width:auto; padding:5px 15px;">إغلاق</button>
+            </div>
+            <div class="report-views-container">
+                <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
+                    <button onclick="openManageHalls()" class="admin-sub-btn btn-manage-halls" style="width:100%; height:70px; flex-direction:row; font-size:15px;">
+                        <i class="fa-solid fa-building sub-btn-icon"></i>
+                        <span>إدارة القاعات</span>
+                    </button>
+                    <button onclick="openManageSubjects()" class="admin-sub-btn btn-manage-subjects" style="width:100%; height:70px; flex-direction:row; font-size:15px;">
+                        <i class="fa-solid fa-book sub-btn-icon"></i>
+                        <span>إدارة المواد</span>
+                    </button>
+                    <div style="margin-top:20px; font-size:12px; color:#64748b;">
+                        * يتم تحديث بيانات الطلاب تلقائياً من السيرفر.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="manageHallsModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="report-modal-header">
+                <div class="modal-title" style="margin:0; font-size:16px;">إدارة القاعات</div>
+                <button onclick="document.getElementById('manageHallsModal').style.display='none'" class="btn-close-stylish" style="width:auto; padding:5px 15px;">إغلاق</button>
+            </div>
+            <div class="report-views-container">
+                <div style="padding:15px; overflow-y:auto; height:100%;">
+                    <div class="search-box-wrapper">
+                        <input type="text" id="newHallInput" placeholder="أدخل اسم/رقم القاعة..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:10px;">
+                        <button onclick="addHall()" class="add-hall-btn" style="width:100%;">+ إضافة قاعة</button>
+                    </div>
+                    <div id="hallsListManage" style="margin-top:15px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="manageSubjectsModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="report-modal-header">
+                <div class="modal-title" style="margin:0; font-size:16px;">إدارة المواد</div>
+                <button onclick="document.getElementById('manageSubjectsModal').style.display='none'" class="btn-close-stylish" style="width:auto; padding:5px 15px;">إغلاق</button>
+            </div>
+            <div class="report-views-container">
+                <div style="padding:15px; overflow-y:auto; height:100%;">
+                    <select id="manageYearSelect" class="modern-input" style="margin-bottom:10px;" onchange="renderSubjectsManage()">
+                        <option value="first_year">الفرقة الأولى</option>
+                        <option value="second_year">الفرقة الثانية</option>
+                    </select>
+                    <div class="search-box-wrapper">
+                        <input type="text" id="newSubjectInput" placeholder="أدخل اسم المادة..." style="width:100%; padding:10px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:10px;">
+                        <button onclick="addSubject()" class="add-hall-btn" style="width:100%;">+ إضافة مادة</button>
+                    </div>
+                    <div id="subjectsListManage" style="margin-top:15px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reportModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="report-modal-header">
+                <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                    <div class="modal-title" style="margin:0; font-size:16px;">سجل الحضور</div>
+                    <div id="reportDateDisplay" class="en-font" style="font-size:12px; color:#94a3b8; font-weight:bold;">--</div>
+                </div>
+                <button onclick="clearAllReport()" class="btn-icon-danger">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+
+            <div class="report-views-container">
+                <div id="viewSubjects" class="report-view slide-in">
+                    <div id="subjectsContainer"></div>
+                </div>
+                
+                <div id="viewStudents" class="report-view">
+                    <div class="students-list-header">
+                        <button onclick="showSubjectsView()" class="btn-back-report">
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </button>
+                        <div style="display:flex; flex-direction:column; text-align:right;">
+                            <span id="currentSubjectTitle" style="font-weight:800; font-size:14px; color:var(--primary-dark)">--</span>
+                        </div>
+                        <button onclick="openReportModal()" class="btn-back-report" style="margin-right:auto;">
+                           <i class="fa-solid fa-rotate-right"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="search-box-wrapper">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" id="studentSearchInput" placeholder="ابحث بالاسم أو الكود..." onkeyup="filterStudents()">
+                    </div>
+                    
+                    <div id="studentsContainer"></div>
+                </div>
+            </div>
+
+            <div class="report-modal-footer">
+                <button id="btnRefreshReport" onclick="openReportModal()" class="btn-refresh-list">
+                    تحديث <i class="fa-solid fa-rotate"></i>
+                </button>
+                <button onclick="closeReportModal()" class="btn-close-stylish" style="margin-top:10px;">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="examModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="exam-loader"></div>
+            <div class="modal-title" style="color: #7c3aed;">جاري الإعداد</div>
+            <div class="modal-text">يتم تجهيز نظام الامتحانات حالياً...</div>
+            <button onclick="closeExamModal()" class="modal-btn btn-cancel">إغلاق</button>
+        </div>
+    </div>
+
+    <div id="cameraErrorModal" class="modal-overlay">
+        <div class="modal-box">
+            <i class="fa-solid fa-camera-slash" style="font-size: 45px; color: #ef4444; margin-bottom: 15px;"></i>
+            <div class="modal-title" style="color: #ef4444;">خطأ في الكاميرا</div>
+            <div class="modal-text" id="cameraErrorMsg">يرجى التأكد من السماح للمتصفح باستخدام الكاميرا من إعدادات الهاتف.</div>
+            
+            <button onclick="alert('اذهب إلى إعدادات الهاتف -> التطبيقات -> المتصفح -> الأذونات -> الكاميرا -> سماح')" class="modal-btn" style="background:#f1f5f9; color:#334155; margin-bottom:10px; font-size:12px;">
+                <i class="fa-solid fa-gear"></i> طريقة التفعيل
+            </button>
+            
+            <button onclick="retryCamera()" class="modal-btn btn-confirm">إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <div id="connectionLostModal" class="modal-overlay" style="z-index: 10000;">
+        <div class="modal-box">
+            <button class="btn-close-modal-x" onclick="hideConnectionLostModal()">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+            <i class="fa-solid fa-wifi" style="font-size: 45px; color: #ef4444; margin-bottom: 15px;"></i>
+            <div class="modal-title" style="color: #ef4444;">انقطع الاتصال</div>
+            <div class="modal-text">لا يوجد اتصال بالإنترنت.<br>جاري المحاولة...</div>
+        </div>
+    </div>
+    
+    <div id="toastNotification"></div> 
+
+    <div id="adminFloatingBack" class="admin-floating-back" onclick="goBackToWelcome()">
+        <i class="fa-solid fa-arrow-right"></i>
+    </div>
+    <div class="app-card">
+        <div class="card-banner"></div>
+        <div id="adminBadge" class="admin-badge"><i class="fa-solid fa-user-shield"></i> وضع المسؤول مفعل</div>
+        
+        <div id="notificationBtn" class="notification-btn" onclick="showNotificationModal()">
+            <i class="fa-solid fa-bell"></i>
+            <div class="notification-badge"></div>
+        </div>
+
+        <div class="card-body">
+            
+            <div class="hero-icon-wrapper" id="heroIconWrapper">
+                <img src="https://k.top4top.io/p_3615d3vek1.png" class="hero-img" id="heroImage">
+                <div class="status-icon-container" id="statusIconContainer">
+                    <i class="fa-solid fa-user-nurse hero-icon" id="statusIcon"></i>
+                </div>
+            </div>
+            
+            <div class="info-bar">
+                <div class="info-pill"><i class="fa-regular fa-clock"></i> <span id="currentTime">--:--:--</span></div>
+                <div class="info-pill"><i class="fa-regular fa-calendar"></i> <span id="currentDate">--/--/----</span></div>
+            </div>
+
+            <div class="card-body-content">
+                <div id="screenWelcome" class="section active">
+                    <div class="faculty-title-box">
+                        <span class="faculty-title-text">جامعة الريادة - كلية التمريض</span>
+                    </div>
+                    <h1 class="smart-title">نظام كشف الحضور</h1>
+                    <p>مرحباً بك. يرجى الضغط بالأسفل لتسجيل حضور المحاضرة الحالية.</p>
+                    <div style="position: relative; z-index: 2;">
+                        <button onclick="safeClick(this, () => startProcess(false))" class="btn-main" id="mainActionBtn">
+                            تسجيل الحضور <i class="fa-solid fa-fingerprint"></i>
+                        </button>
+                        <div class="admin-controls-grid">
+                            <button id="btnAdminLogin" onclick="safeClick(this, () => switchScreen('screenAdminLogin'))" class="admin-sub-btn btn-admin-login">
+                                <i class="fa-solid fa-lock sub-btn-icon"></i>
+                                <span>دخول المسؤول</span>
+                            </button>
+                            <button id="btnAdminLogout" onclick="safeClick(this, openLogoutModal)" class="admin-sub-btn btn-admin-logout" style="display:none;">
+                                <i class="fa-solid fa-arrow-right-from-bracket fa-flip-horizontal sub-btn-icon"></i>
+                                <span>خروج المسؤول</span>
+                            </button>
+                            <button id="btnViewReport" onclick="handleReportClick()" class="admin-sub-btn btn-report locked">
+                                <i id="reportIcon" class="fa-solid fa-list-check sub-btn-icon"></i>
+                                <span>سجل الحضور</span>
+                            </button>
+                            <button onclick="openExamModal()" class="admin-sub-btn btn-exams">
+                                <i class="fa-solid fa-file-pen sub-btn-icon"></i>
+                                <span style="font-size: 13px;">تنظيم الامتحانات</span>
+                            </button>
+                            
+                            <button onclick="safeClick(this, () => location.reload())" class="admin-sub-btn btn-refresh">
+                                <i class="fa-solid fa-arrows-rotate sub-btn-icon" style="font-size: 22px;"></i>
+                            </button>
+
+                            <button onclick="openDataEntryMenu()" class="admin-sub-btn btn-data-entry" id="btnDataEntry" style="display:none;">
+                                <i class="fa-solid fa-database sub-btn-icon"></i>
+                                <span>إدخال البيانات</span>
+                            </button>
+                        </div>
+                        <div class="academic-footer">
+                            </div>
+                    </div>
+                </div>
+                <div id="screenAdminLogin" class="section">
+                    <h1>دخول المسؤول</h1>
+                    <p>أدخل كلمة المرور.</p>
+                    <div id="adminAlert" style="display:none;" class="alert-box"></div>
+                    <div class="input-group">
+                        <input type="password" id="adminPassword" placeholder="كلمة المرور" required>
+                    </div>
+                    <button onclick="checkAdminPassword()" class="btn-main">تفعيل <i class="fa-solid fa-key"></i></button>
+                    <button onclick="goBackToWelcome()" class="btn-back-modern">
+                        العودة للصفحة الرئيسية
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                </div>
+
+                <div id="screenLoading" class="section">
+                    <h1 style="margin-top: 10px;">جاري التحقق...</h1>
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:40px; color:var(--primary); margin: 20px 0;"></i>
+                    <p>يرجى السماح للمتصفح بتحديد موقعك الجغرافي.</p>
+                    
+                    <button onclick="openMapsToRefreshGPS()" class="btn-google-maps" style="margin-top: 20px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/a/aa/Google_Maps_icon_%282020%29.svg" class="maps-icon-img" alt="Maps">
+                        <span>فتح الخريطة (لتنشيط GPS)</span>
+                    </button>
+                </div>
+                <div id="screenReadyToStart" class="section">
+                    <div style="margin: 30px 0;">
+                        <i class="fa-solid fa-map-location-dot" style="font-size: 60px; color: #10b981; animation: popUp 0.5s;"></i>
+                    </div>
+                    <h1 style="color: #10b981;">الموقع مطابق</h1>
+                    <p>تم التحقق من تواجدك في الكلية بنجاح.</p>
+                    
+                    <button onclick="generateCodeAndShowDataEntry()" class="btn-main" style="margin-top: 10px;">
+                        سجل الآن <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                </div>
+
+                <div id="screenDataEntry" class="section">
+                    <div class="circular-timer">
+                        <svg class="timer-svg" viewBox="0 0 80 80">
+                            <circle class="timer-circle-bg" cx="40" cy="40" r="35"></circle>
+                            <circle class="timer-circle-fg" id="timerProgress" cx="40" cy="40" r="35"></circle>
+                        </svg>
+                        <div class="timer-text-box">
+                            <span class="timer-number en-font" id="timerNumber">20</span>
+                            <span class="timer-label">ثانية</span>
+                        </div>
+                    </div>
+                    
+                    <div class="attempts-hearts" id="attemptsHeartsContainer"></div>
+
+                    <h1 style="font-size:20px; margin-top:5px;">بيانات الطالب / الطالبة</h1>
+                    <div id="dataEntryAlert" class="alert-box" style="display:none; margin-bottom: 25px; color:#ef4444; font-weight:bold;"></div>
+                    <div class="input-group">
+                        <input type="text" id="uniID" class="modern-input en-font" placeholder="ID" readonly style="text-align:center; font-size:20px; letter-spacing:2px; font-weight:bold; background:white;">
+                    </div>
+                    <div class="input-group"><input type="text" id="attendanceCode" class="modern-input locked en-font" readonly></div>
+                    
+                    <div class="custom-keypad">
+                        <button type="button" class="key-btn" onclick="addKey('1')">1</button>
+                        <button type="button" class="key-btn" onclick="addKey('2')">2</button>
+                        <button type="button" class="key-btn" onclick="addKey('3')">3</button>
+                        <button type="button" class="key-btn" onclick="addKey('4')">4</button>
+                        <button type="button" class="key-btn" onclick="addKey('5')">5</button>
+                        <button type="button" class="key-btn" onclick="addKey('6')">6</button>
+                        <button type="button" class="key-btn" onclick="addKey('7')">7</button>
+                        <button type="button" class="key-btn" onclick="addKey('8')">8</button>
+                        <button type="button" class="key-btn" onclick="addKey('9')">9</button>
+                        <button type="button" class="key-btn action-btn" onclick="clearKey()">C</button>
+                        <button type="button" class="key-btn" onclick="addKey('0')">0</button>
+                        <button type="button" class="key-btn delete-btn" onclick="backspaceKey()"><i class="fa-solid fa-delete-left"></i></button>
+                    </div>
+                    
+                    <button type="button" onclick="handleIdSubmit()" class="btn-main" id="nextStepBtn" style="margin-top:20px;">التالي <i class="fa-solid fa-arrow-left"></i></button>
+                </div>
+                <div id="screenFaceCheck" class="section">
+                    <h1>التعرف على الهوية</h1>
+                    <div class="cam-container" id="camBorder">
+                        <video id="video" autoplay muted playsinline></video>
+                        <div id="loaderSpinner" class="spinner-overlay">
+                            <i class="fa-solid fa-user-shield large-loader-icon"></i>
+                            <div class="spinner"></div>
+                            <p style="color:var(--text-main); font-size:14px; margin-top:15px; font-weight:bold;">جاري تهيئة النظام...</p>
+                        </div>
+                        <div id="modernTimerContainer" class="timer-circular-wrapper">
+                            <svg class="timer-svg-face" viewBox="0 0 100 100">
+                                <circle class="timer-circle-bg-face" cx="50" cy="50" r="45"></circle>
+                                <circle class="timer-circle-fg" id="timerProgressFace" cx="50" cy="50" r="45"></circle>
+                            </svg>
+                            <div class="timer-text-box">
+                                <span class="timer-number-face en-font" id="timerNumberFace">3</span>
+                            </div>
+                        </div>
+                        <div id="alertBadge" class="alert-badge">⚠️</div>
+                    </div>
+                    <h3 id="statusTxt" style="color:#0ea5e9; font-weight:bold; margin-top:10px;">جاري التشغيل...</h3>
+                    <p style="font-size:12px; margin-top:5px;">يجب أن يكون وجهك ثابتاً وبدون ضحك</p>
+                </div>
+                
+                <div id="screenScanQR" class="section">
+                    <h1 style="font-size:20px; margin-top:10px;">مسح رمز الحضور</h1>
+                    <div class="student-info-card">
+                        <div class="student-info-item">
+                            <div class="student-info-icon"><i class="fa-solid fa-user-graduate"></i></div>
+                            <span class="student-info-label">اسم الطالب / الطالبة</span>
+                            <span class="student-info-value" id="scanNameDisplay">--</span>
+                        </div>
+                        <div class="student-info-item">
+                            <div class="student-info-icon"><i class="fa-solid fa-id-card"></i></div>
+                            <span class="student-info-label">الكود الجامعي (ID)</span>
+                            <span class="student-info-value en-font" id="scanIDDisplay">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="custom-select-wrapper" id="yearSelectWrapper">
+                        <label class="custom-select-label">الفرقة الدراسية</label>
+                        <div class="custom-select-trigger" data-default-text="-- اختر الفرقة --">
+                            <div class="trigger-content">
+                                <div class="trigger-icon"><i class="fa-solid fa-layer-group"></i></div>
+                                <span class="trigger-text">-- اختر الفرقة --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </div>
+                        <div class="custom-options-overlay" onclick="closeSelect(this)"></div>
+                        <div class="custom-options">
+                            <div class="sheet-handle"></div>
+                            <div class="options-title">اختر الفرقة الدراسية</div>
+                            <div class="custom-option" data-value="first_year"><span>الفرقة الأولى</span></div>
+                            <div class="custom-option" data-value="second_year"><span>الفرقة الثانية</span></div>
+                        </div>
+                        <select id="yearSelect" style="display:none;">
+                            <option value="" disabled selected>-- اختر الفرقة --</option>
+                            <option value="first_year">الفرقة الأولى</option>
+                            <option value="second_year">الفرقة الثانية</option>
+                        </select>
+                    </div>
+                    <div class="custom-select-wrapper disabled" id="groupSelectWrapper">
+                        <label class="custom-select-label">رقم المجموعة (الجروب)</label>
+                        <div class="custom-select-trigger" data-default-text="-- اختر الفرقة أولاً --">
+                            <div class="trigger-content">
+                                <div class="trigger-icon"><i class="fa-solid fa-users-rectangle"></i></div>
+                                <span class="trigger-text">-- اختر الفرقة أولاً --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </div>
+                        <div class="custom-options-overlay" onclick="closeSelect(this)"></div>
+                        <div class="custom-options">
+                            <div class="sheet-handle"></div>
+                            <div class="options-title">اختر المجموعة</div>
+                            <div id="groupOptionsContainer" style="max-height: 250px; overflow-y: auto;"></div>
+                        </div>
+                        <select id="groupSelect" style="display:none;" onchange="checkAllConditions()">
+                            <option value="" disabled selected>-- اختر الفرقة أولاً --</option>
+                        </select>
+                    </div>
+
+                    <div class="custom-select-wrapper disabled" id="subjectSelectWrapper">
+                        <label class="custom-select-label">المادة الدراسية</label>
+                        <div class="custom-select-trigger" data-default-text="-- اختر الفرقة أولاً --">
+                            <div class="trigger-content">
+                                <div class="trigger-icon"><i class="fa-solid fa-book-open"></i></div>
+                                <span class="trigger-text">-- اختر الفرقة أولاً --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </div>
+                        <div class="custom-options-overlay" onclick="closeSelect(this)"></div>
+                        <div class="custom-options">
+                            <div class="sheet-handle"></div>
+                            <div class="options-title">اختر المادة الدراسية</div>
+                            <div id="subjectOptionsContainer"></div>
+                        </div>
+                        <select id="subjectSelect" style="display:none;" onchange="checkAllConditions()">
+                            <option value="" disabled selected>-- اختر الفرقة أولاً --</option>
+                        </select>
+                    </div>
+                    
+                    <div class="custom-select-wrapper" id="hallSelectWrapper">
+                        <label class="custom-select-label">المدرج الدراسي (مطلوب)</label>
+                        <div class="custom-select-trigger" data-default-text="-- اختر المدرج --">
+                            <div class="trigger-content">
+                                <div class="trigger-icon"><i class="fa-solid fa-building-columns"></i></div>
+                                <span class="trigger-text">-- اختر المدرج --</span>
+                            </div>
+                            <i class="fa-solid fa-chevron-down arrow-icon"></i>
+                        </div>
+                        <div class="custom-options-overlay" onclick="closeSelect(this)"></div>
+                        <div class="custom-options">
+                            <div class="sheet-handle"></div>
+                            <div class="options-title">اختر المدرج الدراسي</div>
+                            
+                            <div class="hall-search-box">
+                                <input type="text" id="hallSearchInput" class="hall-search-input" placeholder="بحث عن القاعة..." onclick="event.stopPropagation()">
+                            </div>
+                            
+                            <div id="hallOptionsContainer" style="max-height: 250px; overflow-y: auto;"></div>
+                        </div>
+                        <select id="hallSelect" style="display:none;" onchange="checkAllConditions()">
+                            <option value="" disabled selected>-- اختر المدرج --</option>
+                        </select>
+                    </div>
+
+                    <button onclick="safeClick(this, startFaceVerificationProcess)" class="btn-verify-identity" id="btnVerify">
+                        <i class="fa-solid fa-fingerprint"></i> التحقق من الهوية
+                    </button>
+                    
+                    <div id="adminBypassContainer" style="display:block; margin-top:10px; margin-bottom:15px; text-align:right;">
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; background:#fff; padding:10px; border-radius:12px; border:1px solid #e2e8f0;">
+                            <input type="checkbox" id="bypassCheckbox" style="width:20px; height:20px; accent-color:#10b981;" onchange="toggleBypassMode()">
+                            <span style="font-weight:bold; color:#ef4444; font-size:13px;">تجاوز التحقق (للتجربة)</span>
+                        </label>
+                    </div>
+
+                    <div id="qr-reader"><div class="scanner-laser"></div></div>
+                    <div id="startScanCard" class="qr-card-trigger" onclick="safeClick(this, startQrScanner)">
+                        <div class="qr-card-icon"><i class="fa-solid fa-camera"></i></div>
+                        <div>
+                            <div class="qr-card-text">اضغط لفتح الكاميرا</div>
+                            <div class="qr-card-sub">وجه الكاميرا نحو الرمز</div>
+                        </div>
+                    </div>
+                    <div id="scanSuccessMsg" class="scan-success-badge"><i class="fa-solid fa-check-circle"></i> تم مسح الكود بنجاح</div>
+                    <button type="button" id="retryCamBtn" class="btn-secondary" onclick="startQrScanner()" style="display:none; background: #fee2e2; color: #ef4444; margin-bottom: 15px;"><i class="fa-solid fa-rotate-right"></i> إعادة تشغيل الكاميرا</button>
+                    <input type="hidden" id="sessionPass" required>
+                    <button type="button" id="submitBtn" class="btn-main" disabled style="opacity:0.6; cursor:not-allowed;">تأكيد الحضور <i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+
+                <div id="screenSuccess" class="section">
+                    <h1 style="color:#10b981; margin-bottom: 15px;">تم التسجيل بنجاح</h1>
+                    <div class="ticket-container">
+                        <div class="ticket-header">
+                            <div class="ticket-icon"><i class="fa-solid fa-check"></i></div>
+                            <div style="font-weight: 900; font-size: 18px;">تأكيد حضور</div>
+                        </div>
+                        <div class="ticket-body">
+                            <div class="verified-badge">VERIFIED</div>
+                            <div class="t-row"><span class="t-label">Name</span><span class="t-value" id="receiptName">--</span></div>
+                            <div class="t-row"><span class="t-label">ID</span><span class="t-value english-num" id="receiptID">--</span></div>
+                            <div class="ticket-dashed-line"></div>
+                            <div class="t-row"><span class="t-label">Group</span><span class="t-value english-num" id="receiptGroup">--</span></div>
+                            <div class="t-row"><span class="t-label">Subject</span><span class="t-value" id="receiptSubject" style="color:var(--primary)">--</span></div>
+                            <div class="t-row"><span class="t-label">Hall</span><span class="t-value english-num" id="receiptHall">--</span></div>
+                            <div class="t-row"><span class="t-label">Date</span><span class="t-value english-num" id="receiptDate">--</span></div>
+                            <div class="t-row"><span class="t-label">Time</span><span class="t-value english-num" id="receiptTime">--</span></div>
+                        </div>
+                    </div>
+                    <div style="color:#64748b; font-weight:700; font-size:12px; margin-top:10px;">
+                        <i class="fa-solid fa-circle-check" style="color:#10b981;"></i> تم حفظ البيانات في النظام بنجاح
+                    </div>
+                </div>
+
+                <div id="screenError" class="section">
+                    <h1 style="color:#ef4444;">تنبيه</h1>
+                    <div id="errorMsg" class="alert-box"></div>
+                    <button id="retryBtn" class="btn-main" style="background:#334155; margin-top:20px;">حاول مرة أخرى</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<script>
+        // ==========================================
+        //  الحل الأمني 2 و 3: تعطيل الاختصارات وفخ المطورين
+        // ==========================================
+        
+        // 1. تعطيل كليك يمين والاختصارات المعروفة
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.onkeydown = function(e) {
+            if(e.keyCode == 123) return false; // F12
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'I'.charCodeAt(0)) return false; // Ctrl+Shift+I
+            if(e.ctrlKey && e.shiftKey && e.keyCode == 'J'.charCodeAt(0)) return false; // Ctrl+Shift+J
+            if(e.ctrlKey && e.keyCode == 'U'.charCodeAt(0)) return false; // Ctrl+U
+        };
+
+        // 2. فخ "مصيدة المطورين" (Debugger Trap)
+        // سيقوم بتجميد المتصفح إذا حاول الطالب فتح الـ Console
+        (function() {
+            const threshold = 160;
+            setInterval(() => {
+                const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+                const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+                if (widthThreshold || heightThreshold) {
+                    document.body.innerHTML = '<h1 style="color:red;text-align:center;margin-top:50px;font-family:Cairo">غير مسموح بفتح أدوات المطورين 🚫</h1>';
+                    (function() { debugger; })(); 
+                }
+            }, 1000);
+        })();
+
+        // ==========================================
+        //  الحل الأمني 1: إخفاء المتغيرات (IIFE)
+        // ==========================================
+        (function() {
+            // جميع المتغيرات هنا خاصة ولا يمكن الوصول إليها من الـ Console
+            
+            // ==========================================
+            // إعدادات النظام
+            // ==========================================
+            
+            // 1. رابط تسجيل الحضور (الأساسي - القديم)
+            const MASTER_REGISTRATION_LINK = "/api/sheet";
+
+            // 2. رابط نظام الانضباط (الجديد)
+            // هام: ضع رابط Web App الخاص بسكربت الانضباط الجديد هنا
+            const DISCIPLINE_API_LINK = "ضع_رابط_Web_App_الخاص_بشيت_الانضباط_هنا";
+
+            const GROUP_SHEET_URLS = {};
+            for(let i=1; i<=20; i++) { GROUP_SHEET_URLS["1G"+i] = MASTER_REGISTRATION_LINK; }
+            for(let i=1; i<=20; i++) { GROUP_SHEET_URLS["2G"+i] = MASTER_REGISTRATION_LINK; }
+
+            const CONFIG = {
+                sheetApiUrl: MASTER_REGISTRATION_LINK, 
+                disciplineApiUrl: DISCIPLINE_API_LINK, // استخدام الرابط المنفصل
+                identitySheetUrl: "/api/sheet",
+                gps: { 
+                    targetLat: 30.43841622978127,  
+                    targetLong: 30.836735200410153, 
+                    allowedDistanceKm: 5        
+                },
+                modelsUrl: 'https://justadudewhohacks.github.io/face-api.js/models'
+            };
+            
+            const LOCAL_STORAGE_DB_KEY = "offline_students_db_v2";
+            const ALERT_STORAGE_KEY = "persistent_student_alerts_v2";
+            const DEVICE_ID_KEY = "unique_device_id_v1"; 
+            const HIGHLIGHT_STORAGE_KEY = "student_highlights_persistent"; 
+            const EVAL_STORAGE_KEY = "student_evaluations_v1"; 
+
+            let studentsDB = {};
+            let wakeLock = null;
+            let cachedReportData = [];
+            let systemAlerts = [];
+            let isOpeningMaps = false;
+            let currentEvalID = null;
+            let currentEvalName = null;
+
+            // المتغير الحساس أصبح محمياً الآن
+            let attendanceData = {};
+
+            try {
+                const savedAlerts = localStorage.getItem(ALERT_STORAGE_KEY);
+                if (savedAlerts) systemAlerts = JSON.parse(savedAlerts);
+            } catch (e) {}
+
+            const savedDB = localStorage.getItem(LOCAL_STORAGE_DB_KEY);
+            if (savedDB) {
+                try { studentsDB = JSON.parse(savedDB); } catch(e) {}
+            }
+            
+            fetch(CONFIG.sheetApiUrl).then(r => r.json()).then(d => { if(!d.error) { studentsDB = d; localStorage.setItem(LOCAL_STORAGE_DB_KEY, JSON.stringify(d)); } }).catch(e => console.log("DB Fetch Error"));
+
+            let defaultSubjects = {
+                "first_year": ["اساسيات تمريض 1 نظري", "اساسيات تمريض 1 عملي", "تمريض بالغين 1 نظرى", "تمريض بالغين 1 عملى", "اناتومى نظرى", "اناتومى عملى", "تقييم صحى نظرى", "تقييم صحى عملى", "مصطلحات طبية", "فسيولوجى", "تكنولوجيا المعلومات"],
+                "second_year": ["تمريض بالغين 1 نظرى", "تمريض بالغين 1 عملى", "تمريض حالات حرجة 1 نظرى", "تمريض حالات حرجة 1 عملى", "امراض باطنة", "باثولوجى", "علم الأدوية", "الكتابة التقنية"]
+            };
+            let subjectsData = JSON.parse(localStorage.getItem('subjectsData_v4')) || defaultSubjects;
+
+            let defaultHalls = ["037", "038", "039", "019", "025", "123", "124", "127", "131", "132", "133", "134", "231", "335", "121", "118", "E334", "E335", "E336", "E337", "E344", "E345", "E346", "E347", "E240", "E241", "E242", "E245", "E231", "E230", "E243", "E233", "E222", "E234"];
+            let hallsList = JSON.parse(localStorage.getItem('hallsList_v4')) || defaultHalls;
+
+            const ADMIN_AUTH_TOKEN = "secure_admin_session_token_v99"; 
+            
+            const DATA_ENTRY_TIMEOUT_SEC = 20;
+            const SESSION_END_TIME_KEY = "data_entry_deadline_v2";
+            const TEMP_NAME_KEY = "temp_student_name";
+            const TEMP_ID_KEY = "temp_student_id";
+            const TEMP_CODE_KEY = "temp_session_code";
+            
+            const MAX_ATTEMPTS = 9999;
+            const TODAY_DATE_KEY = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+            const BAN_KEY = "daily_ban_" + TODAY_DATE_KEY;
+
+            let userIP = "Unknown";
+            let geo_watch_id = null;
+            let countdownInterval;
+            let html5QrCode;
+            let sessionEndTime = 0;
+            let processIsActive = false;
+            
+            let userLat = "", userLng = ""; 
+            let lastNoseX = 0, lastNoseY = 0;
+            let faceCheckInterval = null; 
+            let videoStream = null;        
+            const FACE_MODELS_URL = CONFIG.modelsUrl;
+            const TIMER_DURATION_FACE = 3; 
+            const TIMER_CIRCUMFERENCE_FACE = 282.7;
+            
+            let isProcessingClick = false;
+
+            // ==========================================
+            //  تعريف الدوال (Logic Functions)
+            // ==========================================
+
+            function safeClick(element, callback) {
+                if (isProcessingClick) return;
+                if (element && (element.disabled || element.classList.contains('disabled') || element.classList.contains('locked'))) return;
+                isProcessingClick = true;
+                if(element) { element.style.pointerEvents = 'none'; element.style.opacity = '0.7'; }
+                if (typeof callback === 'function') callback();
+                setTimeout(() => {
+                    isProcessingClick = false;
+                    if(element) { element.style.pointerEvents = 'auto'; element.style.opacity = '1'; }
+                }, 600);
+            }
+
+            function getUniqueDeviceId() {
+                let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+                if (!deviceId) {
+                    deviceId = 'DEV-' + Math.random().toString(36).substr(2, 9).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+                    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+                }
+                return deviceId;
+            }
+
+            function generateSessionKey() {
+                return 'KEY-' + Math.random().toString(36).substr(2, 12).toUpperCase();
+            }
+
+            function openDataEntryMenu() { document.getElementById('dataEntryModal').style.display = 'flex'; }
+            function openManageHalls() { renderHallsManage(); document.getElementById('manageHallsModal').style.display = 'flex'; }
+            function openManageSubjects() { renderSubjectsManage(); document.getElementById('manageSubjectsModal').style.display = 'flex'; }
+            
+            function renderHallsManage() {
+                const container = document.getElementById('hallsListManage');
+                container.innerHTML = hallsList.map(h => `
+                    <div class="list-item-manage">
+                        <span style="font-weight:bold;">${h}</span>
+                        <button class="btn-delete-mini" onclick="deleteHall('${h}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+            function addHall() {
+                const val = document.getElementById('newHallInput').value.trim();
+                if(val && !hallsList.includes(val)) {
+                    hallsList.push(val); localStorage.setItem('hallsList_v4', JSON.stringify(hallsList));
+                    document.getElementById('newHallInput').value = ''; renderHallsManage(); renderHallOptions();
+                }
+            }
+            function deleteHall(val) {
+                if(confirm('هل أنت متأكد من حذف القاعة؟')) {
+                    hallsList = hallsList.filter(h => h !== val); localStorage.setItem('hallsList_v4', JSON.stringify(hallsList));
+                    renderHallsManage(); renderHallOptions();
+                }
+            }
+
+            function renderSubjectsManage() {
+                const year = document.getElementById('manageYearSelect').value;
+                const container = document.getElementById('subjectsListManage');
+                container.innerHTML = subjectsData[year].map(s => `
+                    <div class="list-item-manage">
+                        <span style="font-weight:bold;">${s}</span>
+                        <button class="btn-delete-mini" onclick="deleteSubject('${s}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('');
+            }
+            function addSubject() {
+                const year = document.getElementById('manageYearSelect').value;
+                const val = document.getElementById('newSubjectInput').value.trim();
+                if(val && !subjectsData[year].includes(val)) {
+                    subjectsData[year].push(val); localStorage.setItem('subjectsData_v4', JSON.stringify(subjectsData));
+                    document.getElementById('newSubjectInput').value = ''; renderSubjectsManage();
+                }
+            }
+            function deleteSubject(val) {
+                if(confirm('هل أنت متأكد من حذف المادة؟')) {
+                    const year = document.getElementById('manageYearSelect').value;
+                    subjectsData[year] = subjectsData[year].filter(s => s !== val); localStorage.setItem('subjectsData_v4', JSON.stringify(subjectsData));
+                    renderSubjectsManage();
+                }
+            }
+
+            // ==========================================
+            //  التعديل 2: تثبيت التحديد (Persistent Highlight)
+            // ==========================================
+            function getHighlights() { return JSON.parse(localStorage.getItem(HIGHLIGHT_STORAGE_KEY) || "[]"); }
+            function toggleHighlightStorage(id) {
+                let list = getHighlights();
+                if(list.includes(id)) list = list.filter(x => x !== id);
+                else list.push(id);
+                localStorage.setItem(HIGHLIGHT_STORAGE_KEY, JSON.stringify(list));
+                return list.includes(id);
+            }
+
+            // ==========================================
+            //  التعديل 3: نظام التقييم (Modern Evaluation) - تصاعدي
+            // ==========================================
+            function getEvaluations() { return JSON.parse(localStorage.getItem(EVAL_STORAGE_KEY) || "{}"); }
+            
+            function updateSliderUI(val) {
+                const display = document.getElementById('sliderValue');
+                const emoji = document.getElementById('emojiDisplay');
+                let text = "";
+                let emo = "";
+                
+                if(val <= 3) { 
+                    text = `منضبط (${val}/10)`; 
+                    emo = "⭐"; 
+                    display.style.color = "#10b981"; // Green
+                } else if(val <= 6) { 
+                    text = `عادي (${val}/10)`; 
+                    emo = "😐"; 
+                    display.style.color = "#3b82f6"; // Blue
+                } else if(val <= 8) { 
+                    text = `مشاغب قليلاً (${val}/10)`; 
+                    emo = "🤨"; 
+                    display.style.color = "#f59e0b"; // Orange
+                } else { 
+                    text = `غير منضبط جداً (${val}/10)`; 
+                    emo = "😡"; 
+                    display.style.color = "#ef4444"; // Red
+                }
+                
+                display.innerText = text;
+                emoji.innerText = emo;
+            }
+
+            function openEvaluation(studentName, studentID, currentTotal = 0) {
+                playClick();
+                currentEvalID = studentID;
+                currentEvalName = studentName;
+                document.getElementById('evalStudentName').innerText = studentName;
+                document.getElementById('evalCurrentTotal').innerText = currentTotal; // عرض المجموع
+                
+                const savedEvals = getEvaluations();
+                const savedVal = savedEvals[studentID] || 5;
+                
+                const slider = document.getElementById('behaviorSlider');
+                slider.value = savedVal;
+                updateSliderUI(savedVal);
+                
+                document.getElementById('evaluationModal').style.display = 'flex';
+            }
+
+            function closeEvaluation() {
+                playClick();
+                document.getElementById('evaluationModal').style.display = 'none';
+                currentEvalID = null;
+                currentEvalName = null;
+            }
+
+            async function saveEvaluation() {
+                if(!currentEvalID) return;
+                const val = document.getElementById('behaviorSlider').value;
+                
+                // 1. حفظ محلي
+                let evals = getEvaluations();
+                evals[currentEvalID] = val;
+                localStorage.setItem(EVAL_STORAGE_KEY, JSON.stringify(evals));
+                
+                // 2. إرسال لقاعدة بيانات الانضباط الجديدة
+                const btn = document.querySelector('#evaluationModal .btn-main');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+                
+                try {
+                    const params = new URLSearchParams();
+                    params.append("action", "add_discipline");
+                    params.append("id", currentEvalID);
+                    params.append("name", currentEvalName);
+                    params.append("score", val);
+                    
+                    // استخدام الرابط الجديد هنا
+                    await fetch(CONFIG.disciplineApiUrl, { 
+                        method: 'POST', 
+                        mode: 'cors', 
+                        body: params 
+                    });
+                    
+                    playSuccess();
+                    closeEvaluation();
+                    showToast("تم تسجيل المخالفة بنجاح", 2000, "#ef4444");
+                    
+                    // تحديث القائمة لإعادة جلب البيانات الجديدة
+                    const currentSub = document.getElementById('currentSubjectTitle').innerText;
+                    if(currentSub !== "--") openReportModal(); 
+
+                } catch(e) {
+                    console.error(e);
+                    alert("فشل في الاتصال بالسيرفر، تم الحفظ محلياً فقط.");
+                    closeEvaluation();
+                } finally {
+                    btn.innerHTML = originalText;
+                }
+            }
+function openSubjectDetails(subjectName) {
+                playClick();
+                document.getElementById('currentSubjectTitle').innerText = subjectName;
+                
+                let students = cachedReportData.filter(s => s.subject === subjectName);
+
+                students.sort((a, b) => {
+                    return a.group.localeCompare(b.group, undefined, {numeric: true, sensitivity: 'base'});
+                });
+
+                const highlights = getHighlights(); 
+                // لم نعد بحاجة لجلب التقييمات محلياً للعرض لأنها تأتي الآن من السيرفر (totalScore)
+                // لكن يمكن الإبقاء عليها كنسخة احتياطية
+
+                let html = '';
+                students.forEach(item => {
+                    const sessionCode = item.code || "N/A";
+                    const hallName = item.hall || "N/A";
+                    const groupName = item.group || "Unknown"; 
+                    const studentName = item.name || "غير معروف";
+                    const studentID = item.uniID || "---";
+                    const timeStr = item.time || "--:--";
+                    const totalDiscipline = item.totalScore || 0; // استلام المجموع من الباك اند
+                    
+                    const highlightClass = highlights.includes(studentID) ? 'highlighted-red' : '';
+                    
+                    // عرض التقييم (إن وجد)
+                    let evalBadge = "";
+                    if(totalDiscipline > 0) {
+                         let badgeColor = "#f59e0b";
+                         if(totalDiscipline >= 20) badgeColor = "#ef4444";
+                         evalBadge = `<span class="eval-badge" style="color:${badgeColor}; background:#fff7ed; border:1px solid ${badgeColor}"><i class="fa-solid fa-triangle-exclamation"></i> ${totalDiscipline}</span>`;
+                    }
+
+                    html += `
+                        <div class="student-detailed-card ${highlightClass}" id="card-${studentID}">
+                            <div class="st-data-col" style="width: 100%;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                    <div class="st-name" onclick="openEvaluation('${studentName}', '${studentID}', ${totalDiscipline})">
+                                        ${evalBadge} ${studentName}
+                                    </div>
+                                    <div style="display:flex;">
+                                        <button class="btn-highlight-item" onclick="highlightEntry('${studentID}', '${subjectName}', this)"><i class="fa-solid fa-highlighter"></i></button>
+                                        <button class="btn-delete-item" onclick="deleteEntry('${studentID}', '${subjectName}', this)" style="margin-right:5px;"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
+                                </div>
+                                
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                    <div style="background:#e0f2fe; color:#0284c7; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:800; border:1px solid #bae6fd;">
+                                        <i class="fa-solid fa-users-rectangle"></i> ${groupName}
+                                    </div>
+                                    <div class="en-font" style="font-size:12px; color:#64748b; font-weight:600;">
+                                        ID: ${studentID}
+                                    </div>
+                                </div>
+
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div style="font-size:11px; color:#0ea5e9; font-weight:bold; background:#f0f9ff; padding:4px 8px; border-radius:6px;">
+                                        <i class="fa-solid fa-fingerprint"></i> <span class="en-font">${sessionCode}</span>
+                                    </div>
+                                    <div class="std-time-badge" style="margin:0;">
+                                        <i class="fa-regular fa-clock"></i> <span class="en-font">${timeStr}</span>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top:5px; text-align:left; font-size:11px; color:#64748b;">
+                                    <i class="fa-solid fa-building-columns"></i> ${hallName}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('studentsContainer').innerHTML = html;
+                document.getElementById('viewSubjects').style.transform = 'translateX(100%)';
+                document.getElementById('viewStudents').style.transform = 'translateX(0)';
+            }
+
+            function showSubjectsView() { playClick(); document.getElementById('viewSubjects').style.transform = 'translateX(0)'; document.getElementById('viewStudents').style.transform = 'translateX(100%)'; }
+
+            function closeReportModal() { playClick(); document.getElementById('reportModal').style.display = 'none'; }
+            
+            let pendingAction = null;
+            function showModernConfirm(title, text, actionCallback) {
+                playClick(); document.getElementById('modernConfirmTitle').innerText = title; document.getElementById('modernConfirmText').innerHTML = text;
+                const modal = document.getElementById('modernConfirmModal'); modal.style.display = 'flex'; pendingAction = actionCallback;
+                const yesBtn = document.getElementById('btnConfirmYes'); yesBtn.onclick = function() { if (pendingAction) pendingAction(); closeModernConfirm(); }; if(navigator.vibrate) navigator.vibrate(50);
+            }
+            function closeModernConfirm() { playClick(); document.getElementById('modernConfirmModal').style.display = 'none'; pendingAction = null; }
+
+            async function deleteEntry(id, subject, btn) {
+                showModernConfirm("حذف نهائي", "سيتم حذف الطالب من السجل ومن السيرفر نهائياً. هل أنت متأكد؟", async function() {
+                    const card = btn.closest('.student-detailed-card'); 
+                    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+                    
+                    try {
+                        const params = new URLSearchParams();
+                        params.append("action", "deleteEntry");
+                        params.append("id", id);
+                        params.append("subject", subject);
+                        
+                        const token = sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                        if(token) params.append("auth_token", token);
+
+                        // الحذف يتم من شيت الحضور (القديم)
+                        await fetch(MASTER_REGISTRATION_LINK, { 
+                            method: 'POST', 
+                            mode: 'cors', 
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+                            body: params.toString() 
+                        });
+
+                        card.style.opacity = '0';
+                        setTimeout(() => { card.remove(); }, 300);
+                        showToast("تم الحذف من السيرفر.", 2000, '#ef4444');
+
+                    } catch(e) { 
+                        alert("فشل الحذف. تأكد من الاتصال بالإنترنت."); 
+                        btn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                    }
+                });
+            }
+
+            async function highlightEntry(id, subject, btn) {
+                playClick();
+                const card = btn.closest('.student-detailed-card');
+                
+                const isNowHighlighted = toggleHighlightStorage(id);
+
+                if (isNowHighlighted) {
+                    card.classList.add('highlighted-red');
+                } else {
+                    card.classList.remove('highlighted-red');
+                }
+
+                // إرسال للسيرفر (شيت الحضور)
+                try {
+                    const params = new URLSearchParams();
+                    params.append("action", "highlightUser");
+                    params.append("id", id);
+                    params.append("subject", subject);
+                    
+                    const token = sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                    if(token) params.append("auth_token", token);
+
+                    fetch(MASTER_REGISTRATION_LINK, { 
+                        method: 'POST', 
+                        mode: 'cors', 
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+                        body: params.toString() 
+                    });
+                } catch(e) { console.log("Highlight Error: " + e); }
+            }
+
+            async function clearAllReport() {
+                showModernConfirm("تصفيه السجل", "سيتم مسح البيانات. هل أنت متأكد؟", async function() {
+                     document.getElementById('subjectsContainer').innerHTML = '<div style="padding:20px; text-align:center;">جاري الحذف...</div>';
+                     const params = new URLSearchParams();
+                     params.append("action", "clearAll");
+                     
+                     const token = sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                     if(token) params.append("auth_token", token);
+
+                     // مسح سجلات الحضور فقط
+                     fetch(MASTER_REGISTRATION_LINK, { method: 'POST', mode: 'cors', body: params });
+
+                     document.getElementById('subjectsContainer').innerHTML = '<div class="empty-state">تم التنظيف.</div>'; playSuccess();
+                });
+            }
+
+            async function syncGlobalAlerts() {
+                try {
+                    const nocache = new Date().getTime();
+                    // جلب التنبيهات من شيت الحضور (لأنه يحتوي على Logs)
+                    const response = await fetch(`${CONFIG.identitySheetUrl}?action=getAlerts&t=${nocache}`);
+                    const data = await response.json();
+                    
+                    if (data && Array.isArray(data)) {
+                        const serverAlerts = data.map(item => {
+                            return {
+                                name: item.name,
+                                id: item.id,
+                                timestamp: item.timestamp,
+                                risk_level: item.risk_level,
+                                reason: item.reason,
+                                detail: item.detail,
+                                hall: item.hall,
+                                distance: item.distance,
+                                isRead: false
+                            };
+                        });
+
+                        if (serverAlerts.length > 0) {
+                            systemAlerts = serverAlerts;
+                            localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(systemAlerts));
+                            checkStoredAlerts(); 
+                            showTopToast("تم تحديث التنبيهات الأمنية");
+                        }
+                    }
+                } catch (e) {
+                    console.error("Sync Error:", e);
+                }
+            }
+
+            function showTopToast(msg) {
+                const t = document.getElementById('topToast');
+                t.innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${msg}`;
+                t.classList.add('show');
+                setTimeout(() => t.classList.remove('show'), 3000);
+            }
+
+            function checkStoredAlerts() {
+                const btn = document.getElementById('notificationBtn');
+                const container = document.getElementById('alertsListContainer');
+                
+                const isAdmin = !!sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                
+                document.getElementById('adminDeleteAlert').style.display = isAdmin ? 'flex' : 'none';
+
+                const unreadCount = systemAlerts.filter(a => !a.isRead).length;
+                if (unreadCount > 0) btn.classList.add('has-alert'); else btn.classList.remove('has-alert');
+
+                if (systemAlerts.length > 0) {
+                    let html = '';
+                    systemAlerts.forEach((alert, index) => {
+                        const deleteBtn = isAdmin ? `<i class="fa-solid fa-trash-can" style="color:#ef4444; cursor:pointer; margin-left:10px;" onclick="deleteSingleAlert(${index}); event.stopPropagation();"></i>` : '';
+                        let badgeColor = "#f59e0b"; 
+                        if (alert.risk_level === "DEVICE_SHARING" || alert.risk_level === "FACE_SPOOF" || alert.risk_level === "LIMIT_EXCEEDED") {
+                            badgeColor = "#ef4444"; 
+                        }
+                        const itemClass = alert.isRead ? 'read-alert' : 'unread-alert';
+
+                        html += `
+                        <div class="${itemClass}" style="border-radius:12px; padding:10px; margin-bottom:8px; cursor:pointer; transition:0.3s;" onclick="toggleAlertDetails(${index})">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <div style="display:flex; align-items:center;">
+                                    ${deleteBtn}
+                                    <div style="font-weight:bold; font-size:13px;">${alert.name}</div>
+                                </div>
+                                <div class="en-font" style="font-size:10px; color:#94a3b8;">${alert.timestamp.split(' ')[1] || alert.timestamp}</div>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;">
+                                <div style="display:flex; flex-direction:column;">
+                                    <div class="en-font" style="font-size:12px; color:#64748b;">${alert.id}</div>
+                                    <div style="font-size:11px; color:#0f766e; font-weight:bold;">🏛️ قاعة: ${alert.hall}</div>
+                                </div>
+                                <div style="text-align:left;">
+                                    <span style="color:${badgeColor}; display:block; font-size:11px; font-weight:bold;">⚠️ ${alert.reason}</span>
+                                </div>
+                            </div>
+                            <div id="alert-detail-${index}" style="display:none; border-top:1px dashed #e2e8f0; margin-top:8px; padding-top:8px; font-size:11px; color:#475569;">
+                                ${alert.detail}<br>
+                                التوقيت الكامل: <span class="en-font">${alert.timestamp}</span>
+                            </div>
+                        </div>
+                        `;
+                    });
+                    container.innerHTML = html;
+                } else { container.innerHTML = '<div class="empty-state" style="padding:15px; font-size:12px;">لا توجد تنبيهات مسجلة.</div>'; }
+            }
+
+            function updateNotificationUI(data) {
+                if (data.risk_level && data.risk_level !== "SAFE") {
+                    let reasonText = "نشاط مشبوه";
+                    let detailText = "يرجى المراجعة";
+                    
+                    if (data.risk_level === "DEVICE_SHARING") { reasonText = "مشاركة جهاز"; detailText = "الجهاز مستخدم لطالب آخر"; }
+                    else if (data.risk_level === "FACE_SPOOF") { reasonText = "انتحال وجه"; detailText = "الوجه غير مطابق"; }
+                    else if (data.risk_level === "WRONG_LOCATION") { reasonText = "خارج الموقع"; detailText = `يبعد مسافة ${Math.round(data.distance)} م`; }
+                    else if (data.risk_level === "LIMIT_EXCEEDED") { reasonText = "تجاوز الحد"; detailText = "أكثر من 3 محاولات"; }
+
+                    const now = new Date();
+                    const newAlert = {
+                        name: attendanceData.name || 'مجهول',
+                        id: attendanceData.uniID || '---',
+                        timestamp: now.toLocaleTimeString('en-US'),
+                        risk_level: data.risk_level,
+                        reason: reasonText,
+                        detail: detailText,
+                        hall: document.getElementById('hallSelect').value || 'غير محدد',
+                        isRead: false
+                    };
+                    
+                    systemAlerts.unshift(newAlert);
+                    localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(systemAlerts));
+                    checkStoredAlerts();
+                }
+            }
+
+            function toggleAlertDetails(index) {
+                if (!systemAlerts[index].isRead) {
+                    systemAlerts[index].isRead = true; localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(systemAlerts)); checkStoredAlerts();
+                }
+                const el = document.getElementById(`alert-detail-${index}`);
+                if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            }
+
+            function deleteSingleAlert(index) {
+                if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) {
+                    systemAlerts.splice(index, 1); localStorage.setItem(ALERT_STORAGE_KEY, JSON.stringify(systemAlerts)); checkStoredAlerts();
+                }
+            }
+
+            function openDeleteAlertsConfirm() {
+                if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) {
+                    document.getElementById('deleteAlertsConfirmModal').style.display = 'flex';
+                }
+            }
+            function closeDeleteAlertsConfirm() {
+                document.getElementById('deleteAlertsConfirmModal').style.display = 'none';
+            }
+            function confirmClearNotifications() {
+                if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) {
+                    systemAlerts = []; 
+                    localStorage.removeItem(ALERT_STORAGE_KEY); 
+                    checkStoredAlerts(); 
+                    closeDeleteAlertsConfirm();
+                    closeIdentityAlert(); 
+                }
+            }
+            
+            function filterAlerts() {
+                const input = document.getElementById('alertSearchInput'); const filter = input.value.toUpperCase();
+                const container = document.getElementById('alertsListContainer'); const items = container.querySelectorAll('div[onclick^="toggleAlertDetails"]');
+                items.forEach(item => { const text = item.innerText || item.textContent; if (text.toUpperCase().indexOf(filter) > -1) item.style.display = ""; else item.style.display = "none"; });
+            }
+
+            function showNotificationModal() {
+                const isAdmin = !!sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                if (!isAdmin) {
+                    const btn = document.getElementById('notificationBtn'); btn.classList.add('shake-lock'); if(navigator.vibrate) navigator.vibrate(100); return;
+                }
+                checkStoredAlerts(); document.getElementById('identityAlertModal').style.display = 'flex';
+            }
+
+            function closeIdentityAlert() { document.getElementById('identityAlertModal').style.display = 'none'; }
+            
+            function filterStudents() {
+                const input = document.getElementById('studentSearchInput'); const filter = input.value.toUpperCase();
+                const container = document.getElementById('studentsContainer'); const cards = container.getElementsByClassName('student-detailed-card');
+                for (let i = 0; i < cards.length; i++) {
+                    const textValue = cards[i].textContent || cards[i].innerText;
+                    if (textValue.toUpperCase().indexOf(filter) > -1) cards[i].style.display = ""; else cards[i].style.display = "none";
+                }
+            }
+
+            function openExamModal() { playClick(); document.getElementById('examModal').style.display = 'flex'; }
+            function closeExamModal() { playClick(); document.getElementById('examModal').style.display = 'none'; }
+            function handleReportClick() { const btn = document.getElementById('btnViewReport'); if (btn.classList.contains('locked')) { if(navigator.vibrate) navigator.vibrate(50); } else { safeClick(btn, openReportModal); } }
+
+            function resetApplicationState() {
+                attendanceData = {}; attendanceData.isVerified = false; 
+                sessionStorage.removeItem(TEMP_NAME_KEY); sessionStorage.removeItem(TEMP_ID_KEY); sessionStorage.removeItem(TEMP_CODE_KEY); sessionStorage.removeItem(SESSION_END_TIME_KEY);
+                document.getElementById('uniID').value = ''; document.getElementById('attendanceCode').value = ''; document.getElementById('sessionPass').value = '';
+                
+                const yearWrapper = document.getElementById('yearSelectWrapper');
+                yearWrapper.querySelector('.trigger-text').textContent = '-- اختر الفرقة --'; yearWrapper.classList.remove('open');
+                yearWrapper.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected')); document.getElementById('yearSelect').value = '';
+                
+                const groupWrapper = document.getElementById('groupSelectWrapper');
+                groupWrapper.querySelector('.trigger-text').textContent = '-- اختر الفرقة أولاً --'; groupWrapper.classList.add('disabled'); groupWrapper.classList.remove('open');
+                document.getElementById('groupOptionsContainer').innerHTML = ''; document.getElementById('groupSelect').innerHTML = '<option value="" disabled selected>-- اختر الفرقة أولاً --</option>';
+
+                const subjectWrapper = document.getElementById('subjectSelectWrapper');
+                subjectWrapper.querySelector('.trigger-text').textContent = '-- اختر الفرقة أولاً --'; subjectWrapper.classList.add('disabled'); subjectWrapper.classList.remove('open');
+                document.getElementById('subjectOptionsContainer').innerHTML = ''; document.getElementById('subjectSelect').innerHTML = '<option value="" disabled selected>-- اختر الفرقة أولاً --</option>';
+                
+                const hallWrapper = document.getElementById('hallSelectWrapper');
+                hallWrapper.querySelector('.trigger-text').textContent = '-- اختر المدرج --'; hallWrapper.classList.remove('open');
+                hallWrapper.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected')); document.getElementById('hallSelect').value = '';
+                
+                const btn = document.getElementById('submitBtn'); btn.disabled = true; btn.style.opacity = "0.6"; btn.style.cursor = "not-allowed"; btn.innerHTML = 'تأكيد الحضور <i class="fa-solid fa-paper-plane"></i>';
+                document.getElementById('scanNameDisplay').innerText = '--'; document.getElementById('scanIDDisplay').innerText = '--';
+                const verifyBtn = document.getElementById('btnVerify');
+                if(verifyBtn) { verifyBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> التحقق من الهوية'; verifyBtn.style.background = 'linear-gradient(135deg, #6366f1, #4f46e5)'; verifyBtn.style.display = 'flex'; verifyBtn.classList.remove('disabled'); }
+                const bypassCheck = document.getElementById('bypassCheckbox'); if(bypassCheck) bypassCheck.checked = false;
+                checkStoredAlerts(); 
+            }
+
+            fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => userIP = d.ip).catch(e => userIP = "Hidden IP");
+            function playClick() { document.getElementById('clickSound').play().catch(e=>{}); if(navigator.vibrate) navigator.vibrate(10); }
+            function playSuccess() { document.getElementById('successSound').play().catch(e=>{}); if(navigator.vibrate) navigator.vibrate([50, 50, 50]); }
+            function playBeep() { document.getElementById('beepSound').play().catch(e=>{}); }
+            function convertArabicToEnglish(s) { return s.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)); }
+            async function requestWakeLock() { try { if('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} }
+            function releaseWakeLock() { if (wakeLock !== null) { wakeLock.release().then(() => { wakeLock = null; }); } }
+            
+            function getAttemptsLeft() { 
+                return 999; 
+            }
+            function decrementAttempts() { 
+                return 999; 
+            }
+            function updateUIForAttempts() { 
+                const container = document.getElementById('attemptsHeartsContainer');
+                if(container) container.innerHTML = '';
+            }
+
+            window.history.pushState(null, null, window.location.href);
+            window.onpopstate = function () {
+                if (processIsActive && !sessionStorage.getItem(ADMIN_AUTH_TOKEN)) { 
+                    checkBanStatus();
+                    window.history.pushState(null, null, window.location.href); 
+                } else if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) { 
+                    goBackToWelcome(); 
+                }
+            };
+            
+            function handleStrictPenalty() {}
+
+            window.addEventListener('beforeunload', (event) => {
+                 handleStrictPenalty();
+            });
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') {
+                    if (isOpeningMaps) { return; }
+                    if (processIsActive && !sessionStorage.getItem(ADMIN_AUTH_TOKEN)) { 
+                        location.reload(); 
+                    }
+                    releaseWakeLock();
+                } else { 
+                    if (isOpeningMaps) { isOpeningMaps = false; }
+                    if(processIsActive) requestWakeLock(); 
+                }
+            });
+
+            function checkBanStatus() { return false; }
+
+            function updateHeaderState(screenId) {
+                const wrapper = document.getElementById('heroIconWrapper');
+                const icon = document.getElementById('statusIcon');
+                wrapper.classList.remove('show-icon');
+                if (screenId !== 'screenWelcome') {
+                    wrapper.classList.add('show-icon');
+                    if (screenId === 'screenLoading') { icon.className = "fa-solid fa-satellite-dish hero-icon fa-spin"; icon.style.color = "var(--primary)"; }
+                    else if (screenId === 'screenReadyToStart') { icon.className = "fa-solid fa-map-location-dot hero-icon"; icon.style.color = "#10b981"; icon.style.animation = "none"; }
+                    else if (screenId === 'screenDataEntry') { icon.className = "fa-solid fa-user-pen hero-icon"; icon.style.color = "var(--primary)"; icon.style.animation = "none"; }
+                    else if (screenId === 'screenScanQR') { icon.className = "fa-solid fa-qrcode hero-icon"; icon.style.color = "var(--primary)"; icon.style.animation = "none"; }
+                    else if (screenId === 'screenFaceCheck') { 
+                        icon.className = "fa-solid fa-id-card-clip hero-icon"; 
+                        icon.style.color = "var(--primary)"; icon.style.animation = "none"; 
+                    }
+                    else if (screenId === 'screenSuccess') { icon.className = "fa-solid fa-check hero-icon"; icon.style.color = "#10b981"; icon.style.animation = "none"; }
+                    else if (screenId === 'screenError') { icon.className = "fa-solid fa-triangle-exclamation hero-icon"; icon.style.color = "#ef4444"; icon.style.animation = "none"; }
+                    else if (screenId === 'screenAdminLogin') { icon.className = "fa-solid fa-lock hero-icon"; icon.style.color = "var(--primary-dark)"; icon.style.animation = "none"; }
+                }
+            }
+
+            function switchScreen(id) {
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+                const allSections = document.querySelectorAll('.section');
+                const nextScreen = document.getElementById(id);
+                allSections.forEach(el => { if (el.classList.contains('active')) el.classList.remove('active'); });
+                nextScreen.classList.add('active');
+                updateHeaderState(id);
+                updateUIForAttempts(); 
+                
+                const adminBack = document.getElementById('adminFloatingBack');
+                const isAdmin = !!sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                if (isAdmin && id !== 'screenWelcome' && id !== 'screenAdminLogin') { adminBack.style.display = 'flex'; } else { adminBack.style.display = 'none'; }
+                if (!isAdmin && (id === 'screenDataEntry' || id === 'screenScanQR' || id === 'screenFaceCheck' || id === 'screenLoading')) { processIsActive = true; requestWakeLock(); } else { processIsActive = false; releaseWakeLock(); }
+            }
+
+            function openMapsToRefreshGPS() {
+                isOpeningMaps = true; 
+                const lat = CONFIG.gps.targetLat;
+                const lng = CONFIG.gps.targetLong;
+                const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                window.open(mapsUrl, '_blank');
+            }
+
+            window.onload = function() {
+                initGlobalGuard(); updateUIForMode(); setupCustomSelects();
+                checkStoredAlerts(); 
+                startGPSWatcher();
+                renderHallOptions(); 
+                
+                document.getElementById('hallSearchInput').addEventListener('input', function(e) { renderHallOptions(e.target.value); });
+                setInterval(() => {
+                    const now = new Date();
+                    const timeStr = now.toLocaleTimeString('en-US', {hour12: true, hour:'2-digit', minute:'2-digit'});
+                    const dateStr = now.toLocaleDateString('en-GB'); 
+                    const timeEl = document.getElementById('currentTime'); const dateEl = document.getElementById('currentDate');
+                    if(timeEl) timeEl.innerText = timeStr; if(dateEl) dateEl.innerText = dateStr;
+                }, 1000);
+                document.getElementById('submitBtn').addEventListener('click', function(e) { e.preventDefault(); submitToGoogle(); });
+            };
+            
+            function renderHallOptions(filter = "") {
+                const hallContainer = document.getElementById('hallOptionsContainer');
+                const hallSelect = document.getElementById('hallSelect');
+                hallSelect.innerHTML = '<option value="" disabled selected>-- اختر المدرج --</option>';
+                hallContainer.innerHTML = '';
+                const filteredHalls = hallsList.filter(h => h.includes(filter));
+                filteredHalls.forEach(val => {
+                    let opt = document.createElement('option'); opt.value = val; opt.text = val; hallSelect.appendChild(opt);
+                    let cOpt = document.createElement('div'); cOpt.className = "custom-option"; cOpt.setAttribute('data-value', val); cOpt.innerHTML = `<span>${val}</span>`;
+                    cOpt.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        hallContainer.parentElement.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                        this.classList.add('selected');
+                        document.querySelector('#hallSelectWrapper .trigger-text').textContent = val;
+                        document.getElementById('hallSelectWrapper').classList.remove('open');
+                        hallSelect.value = val;
+                        playClick();
+                        checkAllConditions();
+                    });
+                    hallContainer.appendChild(cOpt);
+                });
+                if(filteredHalls.length === 0) { hallContainer.innerHTML = '<div style="padding:10px; text-align:center; color:#94a3b8; font-size:12px;">لا توجد نتائج</div>'; }
+            }
+
+            function startGPSWatcher() {
+                if (navigator.geolocation) {
+                    geo_watch_id = navigator.geolocation.watchPosition(
+                        (position) => { userLat = position.coords.latitude; userLng = position.coords.longitude; },
+                        (error) => { }, { enableHighAccuracy: true, maximumAge: 30000, timeout: 20000 }
+                    );
+                }
+            }
+
+            // === دالة تحديث الواجهة ===
+            function updateUIForMode() {
+                const token = sessionStorage.getItem(ADMIN_AUTH_TOKEN);
+                const isAdmin = !!token; 
+
+                const badge = document.getElementById('adminBadge');
+                const loginBtn = document.getElementById('btnAdminLogin');
+                const logoutBtn = document.getElementById('btnAdminLogout');
+                const reportBtn = document.getElementById('btnViewReport');
+                const reportIcon = document.getElementById('reportIcon');
+                const adminFloating = document.getElementById('adminFloatingBack');
+                const notifBtn = document.getElementById('notificationBtn');
+                const adminBypassContainer = document.getElementById('adminBypassContainer');
+                const btnDataEntry = document.getElementById('btnDataEntry');
+                
+                if (isAdmin) {
+                    badge.style.display = 'block'; loginBtn.style.display = 'none'; logoutBtn.style.display = 'flex'; reportBtn.classList.remove('locked'); reportBtn.classList.add('unlocked'); reportIcon.className = 'fa-solid fa-list-check sub-btn-icon'; 
+                    document.getElementById('adminDeleteAlert').style.display = 'flex'; notifBtn.classList.remove('locked');
+                    if(adminBypassContainer) adminBypassContainer.style.display = 'block';
+                    if(btnDataEntry) btnDataEntry.style.display = 'flex';
+                    syncGlobalAlerts();
+                } else {
+                    badge.style.display = 'none'; loginBtn.style.display = 'flex'; logoutBtn.style.display = 'none'; reportBtn.classList.remove('unlocked'); reportBtn.classList.add('locked'); reportIcon.className = 'fa-solid fa-lock sub-btn-icon'; adminFloating.style.display = 'none'; 
+                    document.getElementById('adminDeleteAlert').style.display = 'none'; notifBtn.classList.add('locked');
+                    if(adminBypassContainer) adminBypassContainer.style.display = 'block';
+                    if(btnDataEntry) btnDataEntry.style.display = 'none';
+                }
+                updateUIForAttempts(); checkStoredAlerts(); 
+            }
+
+            // --- Fake GPS Detection Logic ---
+            function detectFakeGPS(pos) {
+                if (pos.coords.accuracy < 2) return true;
+                if (pos.coords.altitude === null && pos.coords.accuracy < 10) return true;
+                return false;
+            }
+
+            function checkLocationStrict(onSuccess) {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (pos) => { 
+                            if (detectFakeGPS(pos)) {
+                                showError("🚫 تم اكتشاف موقع وهمي (Fake GPS). يرجى إغلاق أي برامج تلاعب بالموقع.", false);
+                                return;
+                            }
+                            userLat = pos.coords.latitude; 
+                            userLng = pos.coords.longitude; 
+                            checkDistance(onSuccess); 
+                        },
+                        (err) => { document.getElementById('locationForceModal').style.display = 'flex'; },
+                        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 } 
+                    );
+                } else { document.getElementById('locationForceModal').style.display = 'flex'; }
+            }
+
+            function checkDistance(onSuccess) {
+                let dist = getDistanceFromLatLonInKm(userLat, userLng, CONFIG.gps.targetLat, CONFIG.gps.targetLong);
+                if (dist > CONFIG.gps.allowedDistanceKm) { showError("🚫 أنت خارج نطاق الكلية. يرجى التواجد في المكان الصحيح.", false); return; }
+                onSuccess();
+            }
+
+            async function startProcess(skip = false) {
+                playClick();
+                resetApplicationState();
+                if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) { generateCodeAndShowDataEntry(); return; }
+                switchScreen('screenLoading');
+                checkLocationStrict(() => { 
+                    switchScreen('screenReadyToStart'); 
+                    playSuccess();
+                });
+            }
+
+            function generateCodeAndShowDataEntry() {
+                playClick();
+                if (checkBanStatus()) return; 
+                
+                attendanceData = {};
+                let code = (Math.floor(142 + Math.random() * 1280) * 7); if (code < 1000) code += 7000;
+                attendanceData.code = code.toString(); document.getElementById('attendanceCode').value = code; sessionStorage.setItem(TEMP_CODE_KEY, code.toString());
+                const newEndTime = Date.now() + (DATA_ENTRY_TIMEOUT_SEC * 1000); sessionEndTime = newEndTime; sessionStorage.setItem(SESSION_END_TIME_KEY, newEndTime.toString());
+                switchScreen('screenDataEntry'); startCountdown();
+            }
+
+            function startCountdown() {
+                const savedDeadline = sessionStorage.getItem(SESSION_END_TIME_KEY);
+                if (savedDeadline) sessionEndTime = parseInt(savedDeadline); else { sessionEndTime = Date.now() + (DATA_ENTRY_TIMEOUT_SEC * 1000); sessionStorage.setItem(SESSION_END_TIME_KEY, sessionEndTime.toString()); }
+                const circle = document.getElementById('timerProgress'); const text = document.getElementById('timerNumber'); const circumference = 2 * Math.PI * 35;
+                if(countdownInterval) clearInterval(countdownInterval);
+                countdownInterval = setInterval(() => {
+                    const now = Date.now(); const remainingMs = sessionEndTime - now; const secondsLeft = Math.max(0, Math.ceil(remainingMs / 1000));
+                    const percent = Math.max(0, remainingMs / (DATA_ENTRY_TIMEOUT_SEC * 1000)); const offset = circumference - (percent * circumference);
+                    text.innerText = secondsLeft.toString(); circle.style.strokeDashoffset = offset;
+                    if (secondsLeft > 10) circle.style.stroke = "#10b981"; else if (secondsLeft > 5) circle.style.stroke = "#f59e0b"; else { circle.style.stroke = "#ef4444"; circle.parentElement.classList.add('timer-pulse'); }
+                    if (remainingMs <= 0) {
+                        clearInterval(countdownInterval); 
+                        if (sessionStorage.getItem(ADMIN_AUTH_TOKEN)) { text.innerText = "0"; return; }
+                        document.getElementById('nextStepBtn').disabled = true; hideConnectionLostModal(); processIsActive = false; releaseWakeLock();
+                        
+                        let left = decrementAttempts(); 
+                        updateUIForAttempts(); 
+                        
+                        document.getElementById('timeoutMessage').innerText = `انتهى الوقت. انتبه: في المرة القادمة سيتم حظرك.`;
+                        document.getElementById('timeoutModal').style.display = 'flex';
+                        if(navigator.vibrate) navigator.vibrate(300);
+                    }
+                }, 100);
+            }
+            
+            function closeTimeoutModal() {
+                document.getElementById('timeoutModal').style.display = 'none';
+                location.reload();
+            }
+
+            async function handleIdSubmit() {
+                playClick();
+                let rawId = document.getElementById('uniID').value.trim();
+                const uniIdVal = convertArabicToEnglish(rawId);
+                const alertBox = document.getElementById('dataEntryAlert');
+                if (!uniIdVal) { alertBox.innerText = "⚠️ يرجى إدخال الكود الجامعي."; alertBox.style.display = 'block'; return; }
+                if(Object.keys(studentsDB).length === 0) { alertBox.innerText = "⚠️ جاري تحميل البيانات.."; alertBox.style.display = 'block'; return; }
+                const studentName = studentsDB[uniIdVal];
+                if (studentName) {
+                    attendanceData.uniID = uniIdVal; attendanceData.name = studentName;
+                    sessionStorage.setItem(TEMP_ID_KEY, uniIdVal); sessionStorage.setItem(TEMP_NAME_KEY, studentName);
+                    document.getElementById('scanNameDisplay').innerText = studentName; document.getElementById('scanIDDisplay').innerText = uniIdVal;
+                    if(countdownInterval) clearInterval(countdownInterval); stopCameraSafely(); switchScreen('screenScanQR'); playSuccess();
+                } else { alertBox.innerText = "❌ الكود غير صحيح."; alertBox.style.display = 'block'; if(navigator.vibrate) navigator.vibrate(300); }
+            }
+
+            // ==========================================
+            //  التعديل 1: تجاوز التحقق (وجه + موقع)
+            // ==========================================
+            function toggleBypassMode() {
+                const chk = document.getElementById('bypassCheckbox');
+                const btnVerify = document.getElementById('btnVerify');
+                if(chk.checked) {
+                    attendanceData.isVerified = true; 
+                    // وضع إحداثيات صحيحة وهمية لتجاوز فحص الموقع
+                    userLat = CONFIG.gps.targetLat;
+                    userLng = CONFIG.gps.targetLong;
+                    
+                    btnVerify.style.display = 'none'; 
+                    document.getElementById('bypassModal').style.display = 'flex';
+                    setTimeout(() => { document.getElementById('bypassModal').style.display = 'none'; }, 2000);
+                } else {
+                    attendanceData.isVerified = false; 
+                    btnVerify.style.display = 'flex'; 
+                    btnVerify.innerHTML = '<i class="fa-solid fa-fingerprint"></i> التحقق من الهوية'; 
+                    btnVerify.classList.remove('disabled');
+                }
+                checkAllConditions();
+            }
+
+            async function startFaceVerificationProcess() {
+                const year = document.getElementById('yearSelect').value; 
+                const group = document.getElementById('groupSelect').value;
+                const sub = document.getElementById('subjectSelect').value; 
+                const hall = document.getElementById('hallSelect').value;
+                if (!year || !group || !sub || !hall) {
+                    showToast('⚠️ اختر الفرقة والجروب والمادة والقاعة أولاً', 3000, '#f59e0b');
+                    return;
+                }
+
+                if (!attendanceData.uniID) { showToast('حدث خطأ: لم يتم تحديد الهوية', 3000, '#ef4444'); return; }
+                const btn = document.getElementById('btnVerify'); const oldText = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> جاري تحديد الموقع...';
+                checkLocationStrict(() => { btn.innerHTML = oldText; proceedToCamera(); });
+            }
+
+            async function proceedToCamera() {
+                playClick(); requestWakeLock(); await stopCameraSafely(); switchScreen('screenFaceCheck');
+                const statusTxt = document.getElementById('statusTxt'); const loaderSpinner = document.getElementById('loaderSpinner');
+                try {
+                    statusTxt.innerText = "الرجاء الانتظار..."; statusTxt.style.color = "var(--text-sub)"; loaderSpinner.style.display = 'flex';
+                    await Promise.all([
+                        faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODELS_URL),
+                        faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODELS_URL),
+                        faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODELS_URL),
+                        faceapi.nets.faceExpressionNet.loadFromUri(FACE_MODELS_URL)
+                    ]);
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } });
+                    videoStream = stream; const video = document.getElementById('video'); video.srcObject = stream;
+                    await new Promise((resolve) => { video.onloadedmetadata = () => { video.play(); resolve(); }; });
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    loaderSpinner.style.display = 'none'; statusTxt.innerText = "اثبت مكانك تماماً"; statusTxt.style.color = "var(--primary)"; startStrictAI();
+                } catch (e) {
+                    console.error("Camera Error:", e); 
+                    document.getElementById('cameraErrorModal').style.display = 'flex';
+                    switchScreen('screenScanQR'); 
+                }
+            }
+
+            function startStrictAI() {
+                let step = 0; let count = TIMER_DURATION_FACE; let counting = false; let timerInterval = null;
+                const timerBar = document.getElementById('timerProgressFace'); const timerNum = document.getElementById('timerNumberFace');
+                const modernTimer = document.getElementById('modernTimerContainer'); const alertBadge = document.getElementById('alertBadge');
+                const video = document.getElementById('video'); const camBorder = document.getElementById('camBorder'); const statusTxt = document.getElementById('statusTxt');
+                timerBar.style.strokeDashoffset = TIMER_CIRCUMFERENCE_FACE; timerNum.innerText = TIMER_DURATION_FACE;
+                const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 });
+                if(faceCheckInterval) clearInterval(faceCheckInterval);
+                faceCheckInterval = setInterval(async () => {
+                    if(video.paused || video.ended) return;
+                    const det = await faceapi.detectSingleFace(video, options).withFaceLandmarks().withFaceDescriptor().withFaceExpressions();
+                    if(det) {
+                        const nose = det.landmarks.getNose()[0]; const jaw = det.landmarks.getJawOutline();
+                        const ratio = Math.abs(nose.x - jaw[0].x) / Math.abs(nose.x - jaw[16].x); const expr = det.expressions;
+                        const isStableFace = expr.neutral > 0.8 || (expr.happy < 0.1 && expr.surprised < 0.1);
+                        const moveDist = Math.sqrt(Math.pow(nose.x - lastNoseX, 2) + Math.pow(nose.y - lastNoseY, 2));
+                        lastNoseX = nose.x; lastNoseY = nose.y; const isNotMoving = moveDist < 10; 
+                        if(step === 0) {
+                            if(ratio > 0.8 && ratio < 1.2 && isStableFace && isNotMoving) {
+                                camBorder.className = "cam-container status-ok"; statusTxt.innerText = "ممتاز.. خليك ثابت"; statusTxt.style.color = "var(--success)"; alertBadge.style.display = "none";
+                                if(!counting) {
+                                    counting = true; modernTimer.style.display = "flex"; timerNum.innerText = count; timerBar.style.stroke = "#10b981";
+                                    timerInterval = setInterval(() => {
+                                        const elapsed = (TIMER_DURATION_FACE - count) + 1; const progress = elapsed / TIMER_DURATION_FACE;
+                                        const offset = TIMER_CIRCUMFERENCE_FACE - (progress * TIMER_CIRCUMFERENCE_FACE); timerBar.style.strokeDashoffset = offset;
+                                        count--; timerNum.innerText = count;
+                                        if(count <= 0) { 
+                                            clearInterval(timerInterval); 
+                                            modernTimer.style.display = "none"; 
+                                            step = 1; 
+                                            camBorder.className = "cam-container"; 
+                                            statusTxt.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span>انظر لليمين</span><i class="fa-solid fa-arrow-right-long arrow-anim"></i></div>';
+                                            statusTxt.style.color = "var(--warning)"; 
+                                            if(navigator.vibrate) navigator.vibrate(50); 
+                                        }
+                                    }, 1000);
+                                }
+                            } else {
+                                if(counting) { clearInterval(timerInterval); counting = false; count = TIMER_DURATION_FACE; timerNum.innerText = TIMER_DURATION_FACE; modernTimer.style.display = "none"; timerBar.style.strokeDashoffset = TIMER_CIRCUMFERENCE_FACE; document.getElementById('beepSound').play(); }
+                                camBorder.className = "cam-container status-error"; alertBadge.style.display = "block";
+                                if(!isNotMoving) alertBadge.innerText = "⚠️ لا تتحرك!"; else if(!isStableFace) alertBadge.innerText = "😐 بدون تعابير!"; else alertBadge.innerText = "👀 انظر للأمام";
+                                statusTxt.style.color = "var(--danger)";
+                            }
+                        } else if(step === 1) {
+                            if(ratio < 0.5) {
+                                clearInterval(faceCheckInterval); if(videoStream) videoStream.getTracks().forEach(track => track.stop()); document.getElementById('beepSound').play(); 
+                                attendanceData.vector = Array.from(det.descriptor); 
+                                
+                                const statusTxt = document.getElementById('statusTxt'); 
+                                statusTxt.innerHTML = '<div class="progress-container"><div class="progress-fill"></div></div><div style="font-size:12px;margin-top:5px;">جاري التحليل...</div>';
+                                
+                                const deviceId = getUniqueDeviceId();
+                                const sessionKey = generateSessionKey();
+                                const payload = { 
+                                    action: "register_identity", 
+                                    id: attendanceData.uniID, 
+                                    name: attendanceData.name, 
+                                    vector: Array.from(det.descriptor), 
+                                    gps: `${userLat},${userLng}`, 
+                                    time: new Date().toLocaleTimeString('ar-EG'), 
+                                    hall: document.getElementById('hallSelect').value || 'N/A',
+                                    device_id: deviceId, 
+                                    deviceId: deviceId,  
+                                    session_key: sessionKey, 
+                                    publicKey: sessionKey
+                                };
+                                try {
+                                    const response = await fetch(CONFIG.identitySheetUrl, { method: 'POST', mode: 'cors', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(payload) });
+                                    const result = await response.json();
+                                    updateNotificationUI(result);
+                                    
+                                    const successModal = document.getElementById('verificationSuccessModal');
+                                    successModal.style.display = 'flex';
+                                    
+                                    attendanceData.isVerified = true; 
+                                    const verifyBtn = document.getElementById('btnVerify'); 
+                                    verifyBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> تم التحقق من الهوية'; 
+                                    verifyBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)'; 
+                                    verifyBtn.classList.add('disabled');
+                                    
+                                    setTimeout(() => {
+                                        successModal.style.display = 'none';
+                                        switchScreen('screenScanQR'); 
+                                        playSuccess(); 
+                                        checkAllConditions(); 
+                                    }, 2500);
+
+                                } catch(err) { console.log(err); showToast('تم التحقق محلياً (تعذر الاتصال بالسيرفر)', 3000, '#f59e0b'); attendanceData.isVerified = true; switchScreen('screenScanQR'); checkAllConditions(); }
+                            } else { camBorder.className = "cam-container status-wait"; statusTxt.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;gap:5px;"><span>انظر لليمين</span><i class="fa-solid fa-arrow-right-long arrow-anim"></i></div>'; statusTxt.style.color = "var(--warning)"; alertBadge.style.display = "none"; }
+                        }
+                    } else { camBorder.className = "cam-container status-error"; statusTxt.innerText = "⚠️ لم يتم العثور على وجه"; statusTxt.style.color = "var(--danger)"; alertBadge.style.display = "block"; alertBadge.innerText = "🚫 لا يوجد وجه"; }
+                }, 500);
+            }
+
+            async function submitToGoogle() {
+                playClick();
+                const btn = document.getElementById('submitBtn');
+                if(btn.disabled && btn.innerText.includes('جاري')) return;
+                
+                // Re-check for Fake GPS before final submission
+                if(!userLat || !userLng) {
+                    checkLocationStrict(() => submitToGoogle());
+                    return;
+                }
+
+                const originalText = "تأكيد الحضور <i class='fa-solid fa-paper-plane'></i>";
+                const selectedSubject = document.getElementById('subjectSelect').value; 
+                const selectedGroup = document.getElementById('groupSelect').value;
+                const sessionPassVal = document.getElementById('sessionPass').value;
+                const selectedHall = document.getElementById('hallSelect').value;
+                
+                if(!attendanceData.uniID || !sessionPassVal || !selectedSubject || !selectedGroup || !attendanceData.isVerified) { 
+                    showToast("يرجى إكمال جميع الخطوات.", 3000, '#f59e0b'); return; 
+                }
+                
+                const isDuplicate = cachedReportData.some(item => 
+                    item.uniID === attendanceData.uniID && 
+                    item.subject === selectedSubject
+                );
+
+                if (isDuplicate) {
+                    document.getElementById('duplicateModal').style.display = 'flex';
+                    btn.innerHTML = originalText; btn.disabled = false;
+                    return;
+                }
+
+                btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> جاري تأكيد الحضور...'; 
+                btn.disabled = true;
+                
+                const now = new Date(); 
+                document.getElementById('receiptName').innerText = attendanceData.name; 
+                document.getElementById('receiptID').innerText = attendanceData.uniID; 
+                document.getElementById('receiptGroup').innerText = selectedGroup;
+                document.getElementById('receiptSubject').innerText = selectedSubject; 
+                document.getElementById('receiptHall').innerText = selectedHall || 'N/A'; 
+                document.getElementById('receiptDate').innerText = now.toLocaleDateString('en-GB'); 
+                document.getElementById('receiptTime').innerText = now.toLocaleTimeString('en-US', {hour12: true, hour: '2-digit', minute:'2-digit'});
+                
+                const finalCodeValue = `${attendanceData.code} (QR: ${sessionPassVal})`;
+                const deviceId = getUniqueDeviceId();
+
+                const formParams = new URLSearchParams();
+                formParams.append("action", "register");
+                formParams.append("id", attendanceData.uniID);
+                formParams.append("name", attendanceData.name);
+                formParams.append("group", selectedGroup);
+                formParams.append("code", finalCodeValue);
+                formParams.append("ip", userIP);
+                formParams.append("subject", selectedSubject);
+                formParams.append("hall", selectedHall || "N/A"); 
+                if (attendanceData.vector) formParams.append("vector", JSON.stringify(attendanceData.vector));
+                formParams.append("gps_lat", userLat);
+                formParams.append("gps_lng", userLng);
+                formParams.append("deviceId", deviceId);
+
+                let targetUrl = GROUP_SHEET_URLS[selectedGroup];
+                if (!targetUrl || targetUrl.includes("LINK_SHEET")) {
+                    showToast("عذراً، لم يتم تفعيل رابط هذا الجروب بعد.", 3000, '#ef4444');
+                    btn.innerHTML = originalText; btn.disabled = false;
+                    return;
+                }
+
+                const maxRetries = 5; 
+                let attempt = 0;
+                let success = false;
+
+                while (attempt < maxRetries && !success) {
+                    try {
+                        attempt++;
+                        if (attempt > 1) {
+                            btn.innerHTML = `<i class="fa-solid fa-rotate fa-spin"></i> محاولة ${attempt} من ${maxRetries}...`;
+                            await new Promise(r => setTimeout(r, 1000 + Math.random() * 2000));
+                        }
+
+                        // تسجيل الحضور يتم في الشيت القديم (MASTER_REGISTRATION_LINK)
+                        let response = await fetch(targetUrl, { 
+                            method: 'POST', 
+                            mode: 'cors',  
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, 
+                            body: formParams.toString() 
+                        });
+                        
+                        let result = await response.json();
+
+                        if (result.result === "success") {
+                            success = true;
+                        } else if (result.result === "duplicate") {
+                            success = true; 
+                            showToast("مسجل مسبقاً", 3000, '#f59e0b');
+                        } else if (result.message === "Server Busy") {
+                            throw new Error("Server Busy");
+                        } else {
+                            throw new Error("Unknown Error");
+                        }
+
+                    } catch (err) {
+                        console.log("فشل الاتصال، المحاولة القادمة... " + err);
+                    }
+                }
+
+                if (success) {
+                    processIsActive = false; releaseWakeLock();
+                    let left = decrementAttempts(); 
+                    updateUIForAttempts();
+                    if (left === 0) { localStorage.setItem(BAN_KEY, "true"); }
+
+                    resetApplicationState();
+                    switchScreen('screenSuccess'); playSuccess(); 
+                    
+                    cachedReportData.push({
+                        uniID: attendanceData.uniID,
+                        subject: selectedSubject,
+                        time: now.toLocaleTimeString('en-US', {hour12: false, hour: '2-digit', minute:'2-digit'}),
+                        group: selectedGroup,
+                        name: attendanceData.name,
+                        hall: selectedHall
+                    });
+
+                } else {
+                    btn.innerHTML = originalText; btn.disabled = false; 
+                    showToast("السيرفر مشغول جداً، حاول مرة أخرى الآن.", 4000, '#ef4444');
+                }
+            }
+
+            function addKey(num) { playClick(); const i = document.getElementById('uniID'); if(i.value.length<10) i.value+=num; }
+            function backspaceKey() { playClick(); const i = document.getElementById('uniID'); i.value=i.value.slice(0,-1); }
+            function clearKey() { playClick(); document.getElementById('uniID').value=''; }
+            function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) { var R = 6371; var dLat = (lat2-lat1) * (Math.PI/180); var dLon = (lon2-lon1) * (Math.PI/180); var a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * (Math.PI/180)) * Math.cos(lat2 * (Math.PI/180)) * Math.sin(dLon/2) * Math.sin(dLon/2); return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))); }
+            
+            async function goBackToWelcome() { 
+                playClick(); window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (geo_watch_id) navigator.geolocation.clearWatch(geo_watch_id); 
+                if(countdownInterval) clearInterval(countdownInterval); await stopCameraSafely(); 
+                sessionStorage.removeItem(SESSION_END_TIME_KEY); sessionStorage.removeItem(TEMP_NAME_KEY); sessionStorage.removeItem(TEMP_ID_KEY); sessionStorage.removeItem(TEMP_CODE_KEY); 
+                processIsActive = false; releaseWakeLock(); document.getElementById('uniID').value = ''; 
+                document.getElementById('startScanCard').style.display = 'flex'; hideConnectionLostModal(); switchScreen('screenWelcome'); 
+            }
+            
+            function closeSelect(overlay) { const wrapper = overlay.parentElement; wrapper.classList.remove('open'); }
+            function setupCustomSelects() {
+                const yearWrapper = document.getElementById('yearSelectWrapper');
+                const groupWrapper = document.getElementById('groupSelectWrapper');
+                const subjectWrapper = document.getElementById('subjectSelectWrapper');
+                const hallWrapper = document.getElementById('hallSelectWrapper');
+                const allWrappers = [yearWrapper, groupWrapper, subjectWrapper, hallWrapper];
+                function toggleSelect(wrapper, event) {
+                    event.stopPropagation();
+                    if (!wrapper.classList.contains('open')) { allWrappers.forEach(w => w.classList.remove('open')); if (!wrapper.classList.contains('disabled')) { wrapper.classList.add('open'); playClick(); } } else { wrapper.classList.remove('open'); }
+                }
+                yearWrapper.querySelector('.custom-select-trigger').addEventListener('click', (e) => toggleSelect(yearWrapper, e));
+                groupWrapper.querySelector('.custom-select-trigger').addEventListener('click', (e) => toggleSelect(groupWrapper, e));
+                subjectWrapper.querySelector('.custom-select-trigger').addEventListener('click', (e) => toggleSelect(subjectWrapper, e));
+                hallWrapper.querySelector('.custom-select-trigger').addEventListener('click', (e) => toggleSelect(hallWrapper, e));
+                
+                yearWrapper.querySelectorAll('.custom-option').forEach(op => {
+                    op.addEventListener('click', function(e) {
+                        e.stopPropagation(); yearWrapper.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                        this.classList.add('selected'); yearWrapper.querySelector('.trigger-text').textContent = this.querySelector('span').textContent;
+                        yearWrapper.classList.remove('open'); document.getElementById('yearSelect').value = this.getAttribute('data-value');
+                        playClick(); updateGroups(); updateSubjects(); 
+                    });
+                });
+            }
+
+            function updateGroups() {
+                const y = document.getElementById("yearSelect").value;
+                const gWrapper = document.getElementById('groupSelectWrapper'); 
+                const gOptions = document.getElementById('groupOptionsContainer');
+                const gTriggerText = gWrapper.querySelector('.trigger-text'); 
+                const gReal = document.getElementById("groupSelect");
+                
+                gReal.innerHTML = '<option value="" disabled selected>-- اختر المجموعة --</option>'; 
+                gOptions.innerHTML = ''; 
+                gTriggerText.textContent = '-- اختر المجموعة --';
+
+                if (y) {
+                    gReal.disabled = false; gWrapper.classList.remove('disabled');
+                    
+                    let prefix = (y === "first_year") ? "1G" : "2G";
+                    
+                    for(let i=1; i<=20; i++) {
+                        let groupName = prefix + i;
+                        
+                        const opt = document.createElement("option"); opt.value = groupName; opt.text = groupName; gReal.appendChild(opt);
+                        const cOpt = document.createElement('div'); cOpt.className = 'custom-option'; cOpt.innerHTML = `<span class="english-num">${groupName}</span>`; cOpt.setAttribute('data-value', groupName);
+                        
+                        cOpt.addEventListener('click', function(e) {
+                            e.stopPropagation(); gOptions.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                            this.classList.add('selected'); gTriggerText.textContent = groupName;
+                            gWrapper.classList.remove('open'); gReal.value = this.getAttribute('data-value');
+                            playClick(); checkAllConditions();
+                        }); 
+                        gOptions.appendChild(cOpt);
+                    }
+                } else { 
+                    gReal.disabled = true; gWrapper.classList.add('disabled'); gTriggerText.textContent = '-- اختر الفرقة أولاً --'; 
+                }
+            }
+
+            function updateSubjects() {
+                const y = document.getElementById("yearSelect").value;
+                const sWrapper = document.getElementById('subjectSelectWrapper'); const sOptions = document.getElementById('subjectOptionsContainer');
+                const sTriggerText = sWrapper.querySelector('.trigger-text'); const sReal = document.getElementById("subjectSelect");
+                sReal.innerHTML = '<option value="" disabled selected>-- اختر المادة --</option>'; sOptions.innerHTML = ''; sTriggerText.textContent = '-- اختر المادة --';
+                if (y && subjectsData[y]) {
+                    sReal.disabled = false; sWrapper.classList.remove('disabled');
+                    subjectsData[y].forEach(sub => {
+                        const opt = document.createElement("option"); opt.value = sub; opt.text = sub; sReal.appendChild(opt);
+                        const cOpt = document.createElement('div'); cOpt.className = 'custom-option'; cOpt.innerHTML = `<span>${sub}</span>`; cOpt.setAttribute('data-value', sub);
+                        cOpt.addEventListener('click', function(e) {
+                            e.stopPropagation(); sOptions.querySelectorAll('.custom-option').forEach(o => o.classList.remove('selected'));
+                            this.classList.add('selected'); sTriggerText.textContent = this.querySelector('span').textContent;
+                            sWrapper.classList.remove('open'); sReal.value = this.getAttribute('data-value');
+                            playClick(); checkAllConditions();
+                        }); sOptions.appendChild(cOpt);
+                    });
+                } else { sReal.disabled = true; sWrapper.classList.add('disabled'); sTriggerText.textContent = '-- اختر الفرقة أولاً --'; }
+                checkAllConditions();
+            }
+
+            function checkAllConditions() { 
+                const year = document.getElementById('yearSelect').value; 
+                const group = document.getElementById('groupSelect').value;
+                const sub = document.getElementById('subjectSelect').value; 
+                const qrPass = document.getElementById('sessionPass').value; 
+                const isVerified = attendanceData.isVerified === true;
+                const hall = document.getElementById('hallSelect').value;
+                const btn = document.getElementById('submitBtn'); 
+                
+                if(year && group && sub && hall && qrPass && isVerified) { 
+                    btn.disabled = false; btn.style.opacity = "1"; btn.style.cursor = "pointer"; 
+                } else { 
+                    btn.disabled = true; btn.style.opacity = "0.6"; btn.style.cursor = "not-allowed"; 
+                } 
+            }
+            
+            async function stopCameraSafely() { if(html5QrCode && html5QrCode.isScanning) { try { await html5QrCode.stop(); } catch(e) {} } document.getElementById('qr-reader').style.display = 'none'; releaseWakeLock(); }
+            function retryCamera() { document.getElementById('cameraErrorModal').style.display = 'none'; proceedToCamera(); } 
+            async function startQrScanner() { playClick(); requestWakeLock(); await stopCameraSafely(); document.getElementById('startScanCard').style.display = 'none'; document.getElementById('qr-reader').style.display = 'block'; document.getElementById('qr-reader').innerHTML = '<div class="scanner-laser" style="display:block"></div>'; document.getElementById('submitBtn').disabled = true; document.getElementById('sessionPass').value = ''; html5QrCode = new Html5Qrcode("qr-reader"); try { await html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } }, (t) => { playBeep(); html5QrCode.stop().then(() => { document.getElementById('qr-reader').style.display = 'none'; document.getElementById('scanSuccessMsg').style.display = 'flex'; document.getElementById('sessionPass').value = t; checkAllConditions(); if(navigator.vibrate) navigator.vibrate([100,50,100]); releaseWakeLock(); }); }); } catch (err) { await stopCameraSafely(); document.getElementById('startScanCard').style.display = 'none'; document.getElementById('retryCamBtn').style.display = 'flex'; document.getElementById('cameraErrorModal').style.display = 'flex'; } }
+            
+            async function checkAdminPassword() { 
+                playClick(); 
+                const inputPass = document.getElementById('adminPassword').value;
+
+                try {
+                    const response = await fetch(`/api/login?password=${inputPass}`);
+                    const data = await response.json();
+
+                    if (data.success) { 
+                        playSuccess(); 
+                        const modal = document.getElementById('adminSuccessModal'); 
+                        modal.style.display = 'flex';
+                        
+                        const sessionToken = data.token || "admin_verified_" + Date.now();
+                        sessionStorage.setItem(ADMIN_AUTH_TOKEN, sessionToken); 
+                        
+                        setTimeout(() => { 
+                            modal.style.display = 'none'; 
+                            updateUIForMode(); 
+                            switchScreen('screenWelcome'); 
+                        }, 2000);
+                    } else { 
+                        document.getElementById('adminAlert').innerText = "❌ خطأ"; 
+                        document.getElementById('adminAlert').style.display = 'block'; 
+                        document.getElementById('adminPassword').value = ''; 
+                    } 
+                } catch (e) {
+                    console.error(e);
+                    alert("حدث خطأ في الاتصال");
+                }
+            }
+
+            function showError(msg, isPermanent = false) { if(countdownInterval) clearInterval(countdownInterval); document.getElementById('errorMsg').innerHTML = msg; const retryBtn = document.getElementById('retryBtn'); if(isPermanent) retryBtn.style.display = 'none'; else { retryBtn.style.display = 'inline-block'; retryBtn.onclick = function() { location.reload(); }; } switchScreen('screenError'); if(navigator.vibrate) navigator.vibrate(300); }
+            
+            function performLogout() { 
+                playClick(); 
+                sessionStorage.removeItem(ADMIN_AUTH_TOKEN); 
+                location.reload(); 
+            }
+            
+            function openLogoutModal() { playClick(); document.getElementById('customLogoutModal').style.display = 'flex'; }
+            function closeLogoutModal() { playClick(); document.getElementById('customLogoutModal').style.display = 'none'; }
+            function showConnectionLostModal() { document.getElementById('connectionLostModal').style.display = 'flex'; }
+            
+            function hideConnectionLostModal() { 
+                document.getElementById('connectionLostModal').style.display = 'none'; 
+            }
+            
+            async function checkRealConnection() { return true; }
+            function initGlobalGuard() { setInterval(async () => { const o = await checkRealConnection(); if (!o) showConnectionLostModal(); else hideConnectionLostModal(); }, 2000); 
+                if (!isMobileDevice()) { document.getElementById('desktop-blocker').style.display = 'flex'; document.body.style.overflow = 'hidden'; throw new Error("Desktop access denied."); }
+            }
+            
+            async function openReportModal() {
+                playClick();
+                document.getElementById('reportModal').style.display = 'flex';
+                showSubjectsView();
+
+                const now = new Date();
+                const d = ('0' + now.getDate()).slice(-2) + '/' + ('0' + (now.getMonth()+1)).slice(-2) + '/' + now.getFullYear();
+                
+                document.getElementById('reportDateDisplay').innerText = d;
+                
+                const container = document.getElementById('subjectsContainer');
+                container.innerHTML = `<div style="text-align:center; padding:50px 20px;">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:30px; color:var(--primary); margin-bottom:15px;"></i>
+                    <div style="font-weight:bold; color:#64748b;">جاري جلب سجلات اليوم...</div>
+                </div>`;
+
+                try {
+                    const urls = [MASTER_REGISTRATION_LINK]; 
+                    
+                    const responses = await Promise.all(urls.map(url => fetch(`${url}?action=getReport&date=${d}`).then(res => res.json()).catch(e => [])));
+                    
+                    let allData = [].concat(...responses);
+
+                    if (!allData || allData.length === 0) {
+                        container.innerHTML = `<div class="empty-state" style="margin-top:50px;">
+                            <i class="fa-solid fa-folder-open" style="font-size:40px; margin-bottom:15px; opacity:0.3;"></i>
+                            <br>لا توجد سجلات مسجلة بتاريخ اليوم (${d}).
+                        </div>`;
+                        return;
+                    }
+
+                    allData.reverse(); 
+                    cachedReportData = allData; 
+                    renderSubjectsList(allData); 
+
+                } catch (e) {
+                    console.error(e);
+                    container.innerHTML = '<div style="color:#ef4444; text-align:center; padding:30px;">حدث خطأ في الاتصال بالسيرفر.</div>';
+                }
+            }
+
+            function renderSubjectsList(data) {
+                const subjects = [...new Set(data.map(item => item.subject || "غير محدد"))];
+                let html = '';
+                subjects.forEach(subject => {
+                    const count = data.filter(i => i.subject === subject).length;
+                    html += `
+                        <div class="subject-big-card" onclick="openSubjectDetails('${subject}')">
+                            <div class="sub-card-info">
+                                <h3>${subject}</h3>
+                                <span><i class="fa-solid fa-users"></i> إجمالي الحضور: ${count}</span>
+                            </div>
+                            <div class="sub-arrow"><i class="fa-solid fa-chevron-left"></i></div>
+                        </div>
+                    `;
+                });
+                document.getElementById('subjectsContainer').innerHTML = html;
+            }
+
+            // ==========================================
+            //  ربط الدوال بالـ Window لتصبح متاحة للـ HTML
+            // ==========================================
+            window.startProcess = startProcess;
+            window.handleIdSubmit = handleIdSubmit;
+            window.generateCodeAndShowDataEntry = generateCodeAndShowDataEntry;
+            window.checkAdminPassword = checkAdminPassword;
+            window.goBackToWelcome = goBackToWelcome;
+            window.handleReportClick = handleReportClick;
+            window.openExamModal = openExamModal;
+            window.closeExamModal = closeExamModal;
+            window.openDataEntryMenu = openDataEntryMenu;
+            window.openManageHalls = openManageHalls;
+            window.openManageSubjects = openManageSubjects;
+            window.addHall = addHall;
+            window.deleteHall = deleteHall;
+            window.addSubject = addSubject;
+            window.deleteSubject = deleteSubject;
+            window.renderSubjectsManage = renderSubjectsManage;
+            window.clearAllReport = clearAllReport;
+            window.openReportModal = openReportModal;
+            window.closeReportModal = closeReportModal;
+            window.showSubjectsView = showSubjectsView;
+            window.openSubjectDetails = openSubjectDetails;
+            window.filterStudents = filterStudents;
+            window.saveEvaluation = saveEvaluation;
+            window.closeEvaluation = closeEvaluation;
+            window.openEvaluation = openEvaluation;
+            window.updateSliderUI = updateSliderUI;
+            window.highlightEntry = highlightEntry;
+            window.deleteEntry = deleteEntry;
+            window.openDeleteAlertsConfirm = openDeleteAlertsConfirm;
+            window.closeDeleteAlertsConfirm = closeDeleteAlertsConfirm;
+            window.confirmClearNotifications = confirmClearNotifications;
+            window.showNotificationModal = showNotificationModal;
+            window.closeIdentityAlert = closeIdentityAlert;
+            window.filterAlerts = filterAlerts;
+            window.toggleAlertDetails = toggleAlertDetails;
+            window.deleteSingleAlert = deleteSingleAlert;
+            window.hideConnectionLostModal = hideConnectionLostModal;
+            window.addKey = addKey;
+            window.backspaceKey = backspaceKey;
+            window.clearKey = clearKey;
+            window.openMapsToRefreshGPS = openMapsToRefreshGPS;
+            window.toggleBypassMode = toggleBypassMode;
+            window.startFaceVerificationProcess = startFaceVerificationProcess;
+            window.startQrScanner = startQrScanner;
+            window.retryCamera = retryCamera;
+            window.performLogout = performLogout;
+            window.openLogoutModal = openLogoutModal;
+            window.closeLogoutModal = closeLogoutModal;
+            window.safeClick = safeClick;
+            window.switchScreen = switchScreen;
+            window.closeSelect = closeSelect;
+            window.checkAllConditions = checkAllConditions;
+            window.closeModernConfirm = closeModernConfirm;
+
+        })(); // نهاية الدالة المغلقة (IIFE)
+    </script>
+    
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: './' })
+                    .then(registration => { console.log('ServiceWorker registration successful with scope: ', registration.scope); })
+                    .catch(err => { console.error('ServiceWorker registration failed: ', err); });
+            });
+        }
+    </script>
+</body>
+</html>
