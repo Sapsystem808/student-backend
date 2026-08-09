@@ -90,7 +90,7 @@ const verifyStaffRole = async (req, res, next) => {
 };
 
 function calculateDistance(lat1, lon1, lat2, lon2) {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return 9999; 
+    if (!lat1 || !lon1 || !lat2 || !lon2) return 9999;
     const R = 6371;
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -117,7 +117,7 @@ app.post('/api/student-enroll', verifyToken, async (req, res) => {
 
         const subjectRef = db.collection('subject_enrollments').doc(subjectDocId);
 
-        let collegeForSignal = null; 
+        let collegeForSignal = null;
 
         await db.runTransaction(async (transaction) => {
             const subjectSnap = await transaction.get(subjectRef);
@@ -197,7 +197,7 @@ app.post('/api/student-enroll', verifyToken, async (req, res) => {
 });
 
 app.post('/joinSessionSecure', verifyToken, async (req, res) => {
-    const perfStart = Date.now(); 
+    const perfStart = Date.now();
     try {
         const studentUID = req.user.uid;
         const { sessionDocID, gpsLat, gpsLng, deviceFingerprint, codeInput, patternPath } = req.body;
@@ -303,11 +303,11 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
             is_in_range: isLocationValid,
             is_device_match: isDeviceMatch,
             gps_success: (gpsLat !== 0 && gpsLng !== 0),
-            distance_km: Number(currentDist.toFixed(3)), 
+            distance_km: Number(currentDist.toFixed(3)),
             ip_address: userIP,
             device_id_used: deviceFingerprint || "NO_ID",
             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-            process_time_ms: Date.now() - perfStart 
+            process_time_ms: Date.now() - perfStart
         };
 
         let savedCount = participantSnap.exists ? (participantSnap.data().segment_count || 1) : 1;
@@ -369,7 +369,7 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
 
 app.post('/api/closeSession', verifyToken, verifyStaffRole, async (req, res) => {
     try {
-        const doctorUID = req.user.uid; 
+        const doctorUID = req.user.uid;
 
         const sessionRef = db.collection('active_sessions').doc(doctorUID);
         const sessionSnap = await sessionRef.get();
@@ -563,7 +563,7 @@ app.post('/api/registerFaculty', async (req, res) => {
             displayName: fullName,
         });
         await admin.auth().setCustomUserClaims(userRecord.uid, {
-            adminRole: role 
+            adminRole: role
         });
 
         await db.collection("faculty_members").doc(userRecord.uid).set({
@@ -619,7 +619,7 @@ app.post('/api/registerStudent', async (req, res) => {
                 });
             }
 
-            finalGroup = groupUpper; 
+            finalGroup = groupUpper;
         } else {
             finalGroup = "عام";
         }
@@ -628,11 +628,16 @@ app.post('/api/registerStudent', async (req, res) => {
             return res.status(409).json({ error: "هذا الكود الجامعي مسجل بالفعل!" });
         }
 
+        const officialStudentSnap = await db.collection("students").doc(cleanID).get();
+        if (!officialStudentSnap.exists) {
+            return res.status(404).json({ error: "❌ هذا الكود الجامعي غير مسجل في كشوف الكلية" });
+        }
+
         const userRecord = await admin.auth().createUser({
             email: cleanEmail,
             password: password,
             displayName: cleanName,
-            emailVerified: false 
+            emailVerified: false
         });
 
         createdUserUID = userRecord.uid;
@@ -664,12 +669,12 @@ app.post('/api/registerStudent', async (req, res) => {
 
         batch.set(db.collection("user_registrations").doc(createdUserUID).collection("sensitive_info").doc("main"), {
             email: cleanEmail,
-            bound_device_id: safeFP, 
+            bound_device_id: safeFP,
             created_via: "Secure_Backend_V3"
         });
 
         await batch.commit();
-        createdUserUID = null; 
+        createdUserUID = null;
 
         res.status(200).json({ success: true, uid: userRecord.uid });
 
@@ -699,6 +704,58 @@ app.post('/api/registerStudent', async (req, res) => {
         res.status(500).json({ error: "فشل التسجيل: " + error.message });
     }
 });
+// 🧹 تنظيف الحسابات غير المفعّلة اللي عدّت على إنشاءها أكتر من 48 ساعة
+// بتتنفذ تلقائيًا عبر Vercel Cron — بتحرر الأرقام الجامعية المحجوزة بدون تفعيل
+app.get('/api/cleanupUnverifiedAccounts', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const cutoff = Date.now() - (48 * 60 * 60 * 1000); // 48 ساعة
+        const cutoffTimestamp = admin.firestore.Timestamp.fromMillis(cutoff);
+
+        const staleSnap = await db.collection('user_registrations')
+            .where('status', '==', 'pending_verification')
+            .where('accountCreated', '<', cutoffTimestamp)
+            .get();
+
+        if (staleSnap.empty) {
+            return res.status(200).json({ success: true, cleaned: 0 });
+        }
+
+        let cleanedCount = 0;
+        for (const docSnap of staleSnap.docs) {
+            const uid = docSnap.id;
+            const data = docSnap.data();
+            const studentID = data.registrationInfo?.studentID;
+
+            try {
+                await admin.auth().deleteUser(uid);
+            } catch (e) {
+                console.warn(`⚠️ Auth delete skipped for ${uid}:`, e.message);
+            }
+
+            const batch = db.batch();
+            batch.delete(db.collection('user_registrations').doc(uid));
+            batch.delete(db.collection('user_registrations').doc(uid).collection('sensitive_info').doc('main'));
+            if (studentID) {
+                batch.delete(db.collection('taken_student_ids').doc(studentID));
+            }
+            await batch.commit();
+            cleanedCount++;
+        }
+
+        console.log(`🧹 Cleaned ${cleanedCount} unverified accounts`);
+        res.status(200).json({ success: true, cleaned: cleanedCount });
+
+    } catch (error) {
+        console.error("❌ Cleanup Error:", error);
+        res.status(500).json({ error: "فشل التنظيف" });
+    }
+});
+
 
 app.get('/api/config', (req, res) => {
     res.json({
