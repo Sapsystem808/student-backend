@@ -48,7 +48,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '100kb' }));
 
 const COLLEGE_COORDS = {
     lat: 30.385873919506743,
