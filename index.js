@@ -645,9 +645,6 @@ app.post('/api/registerStudent', async (req, res) => {
         const batch = db.batch();
 
         batch.set(db.collection("taken_student_ids").doc(cleanID), {
-            saved_email: cleanEmail,
-            saved_name: cleanName,
-            saved_uid: createdUserUID,
             timestamp: admin.firestore.FieldValue.serverTimestamp()
         });
 
