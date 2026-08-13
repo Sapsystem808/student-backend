@@ -47,7 +47,9 @@ const registerStudentLimiter = rateLimit({
 app.use(cors({
     origin: function (origin, callback) {
         const isLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-        const isProd = origin === 'https://smartattendancepro-code.github.io';
+        const isProd = origin === 'https://smartattendancepro-code.github.io'
+            || origin === 'https://smart-attendance-pro-sap.web.app'
+            || origin === 'https://smart-attendance-pro-sap.firebaseapp.com';
 
         if (isLocal || isProd) {
             callback(null, true);
