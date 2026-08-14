@@ -54,6 +54,11 @@ const registerFallbackLimiter = rateLimit({
     max: 5,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+        const idHint = String(req.body?.studentID || 'anon').trim().slice(0, 20);
+        return `${ip}:${idHint}`;
+    },
     message: { error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" }
 });
 
@@ -61,14 +66,16 @@ const registerStudentLimiter = async (req, res, next) => {
     if (!registerRatelimit) return registerFallbackLimiter(req, res, next);
     try {
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
-        const { success } = await registerRatelimit.limit(ip);
+        const idHint = String(req.body?.studentID || 'anon').trim().slice(0, 20);
+        const key = `${ip}:${idHint}`;
+        const { success } = await registerRatelimit.limit(key);
         if (!success) {
             return res.status(429).json({ error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" });
         }
         next();
     } catch (e) {
         console.error('⚠️ registerRatelimit runtime error — falling back to local limiter:', e.message);
-        registerFallbackLimiter(req, res, next); 
+        registerFallbackLimiter(req, res, next);
     }
 };
 
@@ -89,6 +96,11 @@ const checkIdFallbackLimiter = rateLimit({
     max: 15,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+        const idHint = String(req.body?.studentId || 'anon').trim().slice(0, 20);
+        return `${ip}:${idHint}`;
+    },
     message: { error: 'rate_limited' }
 });
 
@@ -435,16 +447,17 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
 app.post('/api/checkStudentId', checkIdFallbackLimiter, async (req, res) => {
     try {
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+        const { studentId } = req.body || {};
 
         if (checkIdRatelimit) {
-            const { success } = await checkIdRatelimit.limit(ip);
+            const idHint = String(studentId || 'anon').trim().slice(0, 20);
+            const key = `${ip}:${idHint}`;
+            const { success } = await checkIdRatelimit.limit(key);
             if (!success) {
                 res.setHeader('Retry-After', '10');
                 return res.status(429).json({ error: 'rate_limited' });
             }
         }
-
-        const { studentId } = req.body || {};
         if (typeof studentId !== 'string' || !STUDENT_ID_SAFE_PATTERN.test(studentId)) {
             return res.status(400).json({ status: 'not_found' });
         }
