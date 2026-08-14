@@ -31,11 +31,25 @@ const supabase = createClient(
 
 const helmet = require('helmet');
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet());
 
 const rateLimit = require('express-rate-limit');
+const { Ratelimit } = require('@upstash/ratelimit');
+const { Redis } = require('@upstash/redis');
 
-const registerStudentLimiter = rateLimit({
+let registerRatelimit = null;
+try {
+    registerRatelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(5, '15 m'),
+        analytics: true,
+        prefix: 'ratelimit:registerStudent',
+    });
+} catch (e) {
+    console.error('⚠️ Upstash init failed for register:', e.message);
+}
+const registerFallbackLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
     standardHeaders: true,
@@ -43,11 +57,49 @@ const registerStudentLimiter = rateLimit({
     message: { error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" }
 });
 
+const registerStudentLimiter = async (req, res, next) => {
+    if (!registerRatelimit) return registerFallbackLimiter(req, res, next);
+    try {
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
+        const { success } = await registerRatelimit.limit(ip);
+        if (!success) {
+            return res.status(429).json({ error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" });
+        }
+        next();
+    } catch (e) {
+        console.error('⚠️ registerRatelimit runtime error — falling back to local limiter:', e.message);
+        registerFallbackLimiter(req, res, next); 
+    }
+};
+
+let checkIdRatelimit = null;
+try {
+    checkIdRatelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(8, '10 s'),
+        analytics: true,
+        prefix: 'ratelimit:checkStudentId',
+    });
+} catch (e) {
+    console.error('⚠️ Upstash init failed — falling back to local rate limiter:', e.message);
+}
+
+const checkIdFallbackLimiter = rateLimit({
+    windowMs: 10 * 1000,
+    max: 15,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'rate_limited' }
+});
+
+const STUDENT_ID_SAFE_PATTERN = /^[A-Za-z0-9]{4,20}$/;
 
 app.use(cors({
     origin: function (origin, callback) {
         const isLocal = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-        const isProd = origin === 'https://smartattendancepro-code.github.io';
+        const isProd = origin === 'https://smartattendancepro-code.github.io'
+            || origin === 'https://smart-attendance-pro-sap.web.app'
+            || origin === 'https://smart-attendance-pro-sap.firebaseapp.com';
 
         if (isLocal || isProd) {
             callback(null, true);
@@ -340,7 +392,7 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
             isUniformViolation: false,
             segment_count: savedCount
         });
-        const subjectKey = (sessionData.allowedSubject || "General").replace(/[^\w\u0600-\u06FF]/g, '_'); // تنظيف اسم المادة
+        const subjectKey = (sessionData.allowedSubject || "General").replace(/[^\w\u0600-\u06FF]/g, '_');
         const statsRef = db.collection('student_stats').doc(studentUID);
 
         batch.set(statsRef, {
@@ -380,237 +432,51 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/closeSession', verifyToken, verifyStaffRole, async (req, res) => {
+app.post('/api/checkStudentId', checkIdFallbackLimiter, async (req, res) => {
     try {
-        const doctorUID = req.user.uid;
+        const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
 
-        const sessionRef = db.collection('active_sessions').doc(doctorUID);
-        const sessionSnap = await sessionRef.get();
-
-        if (!sessionSnap.exists) {
-            return res.status(404).json({ error: "لا توجد جلسة نشطة" });
-        }
-
-        const settings = sessionSnap.data();
-
-        if (!settings.isActive) {
-            return res.status(400).json({ error: "الجلسة مغلقة بالفعل" });
-        }
-        const partsRef = db.collection('active_sessions').doc(doctorUID).collection('participants');
-        const partsSnap = await partsRef.get();
-        const now = new Date();
-        const d = String(now.getDate()).padStart(2, '0');
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const y = now.getFullYear();
-        const fixedDateStr = `${d}/${m}/${y}`;
-        const closeTimeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const rawSubject = settings.allowedSubject || "General";
-        const cleanSubKey = rawSubject.trim().replace(/\s+/g, '_').replace(/[^\w\u0600-\u06FF]/g, '');
-        const targetGroups = (req.body.resolvedGroups && req.body.resolvedGroups.length > 0)
-            ? req.body.resolvedGroups
-            : (settings.targetGroups && settings.targetGroups.length > 0)
-                ? settings.targetGroups
-                : ["General"];
-        const currentDocName = settings.doctorName || "Doctor";
-        const BATCH_LIMIT = 450;
-        let currentBatch = db.batch();
-        let opCounter = 0;
-        const commitPromises = [];
-        let processedCount = 0;
-
-        const pushBatch = () => {
-            commitPromises.push(currentBatch.commit());
-            currentBatch = db.batch();
-            opCounter = 0;
-        };
-        partsSnap.forEach(docSnap => {
-            const p = docSnap.data();
-
-            if (p.status === "active" || p.status === "on_break") {
-                const recID = `${p.id}_${fixedDateStr.replace(/\//g, '-')}_${cleanSubKey}`;
-                const attRef = db.collection('attendance').doc(recID);
-
-                let finalGroup = (p.group && p.group !== "General") ? p.group : targetGroups[0];
-                let notesText = "منضبط";
-                if (p.isUnruly) notesText = "غير منضبط - مشاغب";
-                else if (p.isUniformViolation) notesText = "مخالفة زي";
-
-                currentBatch.set(attRef, {
-                    id: p.id,
-                    name: p.name,
-                    subject: rawSubject,
-                    hall: settings.hall,
-                    group: finalGroup,
-                    date: fixedDateStr,
-                    time_str: p.time_str || req.body.time_str || closeTimeStr,
-                    segment_count: p.segment_count || 1,
-                    notes: notesText,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    status: "ATTENDED",
-                    doctorUID: doctorUID,
-                    doctorName: currentDocName,
-                    feedback_status: "pending",
-                    feedback_rating: 0,
-                    isUnruly: p.isUnruly || false,
-                    isUniformViolation: p.isUniformViolation || false
-                });
-                opCounter++;
-
-                if (p.uid) {
-                    currentBatch.set(db.collection('user_registrations').doc(p.uid), {
-                        pendingFeedback: {
-                            attendanceDocId: recID,
-                            subject: rawSubject,
-                            doctorName: currentDocName,
-                            createdAt: admin.firestore.FieldValue.serverTimestamp()
-                        }
-                    }, { merge: true });
-                    opCounter++;
-                }
-                const studentStatsRef = db.collection('student_stats').doc(p.uid || p.id);
-                let statsUpdate = {
-                    group: finalGroup,
-                    studentID: p.id,
-                    last_updated: admin.firestore.FieldValue.serverTimestamp(),
-                    attended: {
-                        [cleanSubKey]: admin.firestore.FieldValue.increment(1)
-                    }
-                };
-                if (p.isUnruly) statsUpdate.cumulative_unruly = admin.firestore.FieldValue.increment(1);
-                if (p.isUniformViolation) statsUpdate.cumulative_uniform = admin.firestore.FieldValue.increment(1);
-
-                currentBatch.set(studentStatsRef, statsUpdate, { merge: true });
-                opCounter++;
-                processedCount++;
+        if (checkIdRatelimit) {
+            const { success } = await checkIdRatelimit.limit(ip);
+            if (!success) {
+                res.setHeader('Retry-After', '10');
+                return res.status(429).json({ error: 'rate_limited' });
             }
-            currentBatch.delete(docSnap.ref);
-            opCounter++;
-            if (opCounter >= BATCH_LIMIT) pushBatch();
-        });
-        targetGroups.forEach(groupName => {
-            if (!groupName) return;
-            const groupRef = db.collection('groups_stats').doc(groupName);
-            currentBatch.set(groupRef, {
-                [`subjects.${cleanSubKey}.total_sessions_held`]: admin.firestore.FieldValue.increment(1),
-                last_updated: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-            opCounter++;
-            if (opCounter >= BATCH_LIMIT) pushBatch();
-        });
-        const safeDateID = fixedDateStr.replace(/\//g, '-');
-        targetGroups.forEach(grp => {
-            const uniqueCounterID = `${safeDateID}_${cleanSubKey}_${grp}`;
-            const counterRef = db.collection('course_counters').doc(uniqueCounterID);
-            currentBatch.set(counterRef, {
-                subject: rawSubject,
-                targetGroups: [grp],
-                date: fixedDateStr,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                doctorUID: doctorUID,
-                academic_year: y.toString()
-            });
-            opCounter++;
-            if (opCounter >= BATCH_LIMIT) pushBatch();
-        });
-        currentBatch.update(sessionRef, { isActive: false, isDoorOpen: false });
-        opCounter++;
-        if (opCounter > 0) commitPromises.push(currentBatch.commit());
-
-        await Promise.all(commitPromises);
-
-        try {
-            const cleanupBatch = db.batch();
-            let cleanupCount = 0;
-
-            partsSnap.forEach(docSnap => {
-                const p = docSnap.data();
-                if (p.uid) {
-                    cleanupBatch.set(
-                        db.collection('user_registrations').doc(p.uid),
-                        { liveState: { status: 'idle', doctorUID: '', joinedAt: null } },
-                        { merge: true }
-                    );
-                    cleanupCount++;
-                    if (cleanupCount >= 400) return;
-                }
-            });
-
-            if (cleanupCount > 0) await cleanupBatch.commit();
-            console.log(`🧹 Cleared liveState for ${cleanupCount} students`);
-        } catch (e) {
-            console.warn('liveState cleanup skipped:', e.message);
         }
 
-        console.log(`✅ Session Closed | Doctor: ${doctorUID} | Students: ${processedCount}`);
-        res.status(200).json({
-            success: true,
-            message: `تم الحفظ بنجاح`,
-            processedCount
+        const { studentId } = req.body || {};
+        if (typeof studentId !== 'string' || !STUDENT_ID_SAFE_PATTERN.test(studentId)) {
+            return res.status(400).json({ status: 'not_found' });
+        }
+
+        const cleanID = studentId.trim();
+
+        const [lockSnap, stdSnap] = await Promise.all([
+            db.collection('taken_student_ids').doc(cleanID).get(),
+            db.collection('students').doc(cleanID).get(),
+        ]);
+
+        if (lockSnap.exists) {
+            return res.status(200).json({ status: 'taken' });
+        }
+
+        if (!stdSnap.exists) {
+            return res.status(200).json({ status: 'not_found' });
+        }
+
+        return res.status(200).json({
+            status: 'ok',
+            name: stdSnap.data().name,
         });
 
-    } catch (error) {
-        console.error("❌ closeSession Error:", error);
-        res.status(500).json({ error: error.message });
-    }
-});
-
-app.post('/api/registerFaculty', async (req, res) => {
-    try {
-        const { email, password, fullName, gender, role, jobTitle, masterKey } = req.body;
-        const keysDoc = await db.collection("system_keys").doc("registration_keys").get();
-        if (!keysDoc.exists) return res.status(500).json({ error: "المفاتيح غير مهيأة في السيرفر" });
-
-        const serverKeys = keysDoc.data();
-
-        let isValid = false;
-        if (role === 'dean' && masterKey === serverKeys.dean_key) isValid = true;
-        if (role === 'doctor' && masterKey === serverKeys.doctor_key) isValid = true;
-
-        if (!isValid) {
-            return res.status(403).json({ error: "🚫 المفتاح السري (Master Key) غير صحيح!" });
-        }
-
-        let userRecord;
-        try {
-            userRecord = await admin.auth().createUser({
-                email,
-                password,
-                displayName: fullName,
-            });
-
-            await admin.auth().setCustomUserClaims(userRecord.uid, {
-                role: role,
-                isVerified: true
-            });
-
-            await db.collection("faculty_members").doc(userRecord.uid).set({
-                fullName,
-                gender,
-                role,
-                jobTitle,
-                email,
-                isVerified: true,
-                registeredAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-
-        } catch (innerError) {
-            if (userRecord?.uid) {
-                console.log(`⚠️ Rolling back faculty account: ${userRecord.uid}`);
-                try { await admin.auth().deleteUser(userRecord.uid); }
-                catch (rbErr) { console.error("💀 Rollback failed, check manually:", userRecord.uid); }
-            }
-            throw innerError;
-        }
-
-        res.status(200).json({ success: true, message: "تم تسجيل الحساب بنجاح" });
-
-    } catch (error) {
-        console.error("Faculty Reg Error:", error);
-        res.status(500).json({ error: error.message });
+    } catch (e) {
+        console.error('❌ checkStudentId Error:', e);
+        return res.status(500).json({ error: 'internal_error' });
     }
 });
 
 app.post('/api/registerStudent', registerStudentLimiter, async (req, res) => {
+
 
     let createdUserUID = null;
     let reservationMade = false;
@@ -1284,7 +1150,8 @@ app.post('/api/syncLiveOfflineAttendance', verifyToken, async (req, res) => {
 });
 
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🛡️ Server Running Port ${PORT}`));
-
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, () => console.log(`🛡️ Server Running Port ${PORT}`));
+}
 module.exports = app;
