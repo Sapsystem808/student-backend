@@ -91,6 +91,40 @@ try {
     console.error('⚠️ Upstash init failed — falling back to local rate limiter:', e.message);
 }
 
+let enrollRatelimit = null;
+try {
+    enrollRatelimit = new Ratelimit({
+        redis: Redis.fromEnv(),
+        limiter: Ratelimit.slidingWindow(10, '1 m'),
+        analytics: true,
+        prefix: 'ratelimit:studentEnroll',
+    });
+} catch (e) {
+    console.error('⚠️ Upstash init failed for enroll:', e.message);
+}
+
+const enrollFallbackLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    keyGenerator: (req) => req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown',
+    message: { error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" }
+});
+
+const studentEnrollLimiter = async (req, res, next) => {
+    if (!enrollRatelimit) return enrollFallbackLimiter(req, res, next);
+    try {
+        const key = req.user?.uid || req.ip || 'unknown';
+        const { success } = await enrollRatelimit.limit(key);
+        if (!success) return res.status(429).json({ error: "⏳ محاولات تسجيل كثيرة، حاول بعد شوية" });
+        next();
+    } catch (e) {
+        console.error('⚠️ enrollRatelimit runtime error:', e.message);
+        enrollFallbackLimiter(req, res, next);
+    }
+};
+
 const checkIdFallbackLimiter = rateLimit({
     windowMs: 10 * 1000,
     max: 15,
@@ -183,14 +217,42 @@ app.get('/', (req, res) => {
 });
 
 
-app.post('/api/student-enroll', verifyToken, async (req, res) => {
+app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, res) => {
     try {
         const studentUID = req.user.uid;
-        const { subjectDocId, subjectName, studentId, studentName, studentGroup } = req.body;
+        const { subjectDocId, subjectName } = req.body;
 
-        if (!subjectDocId || !studentId || !studentName) {
+        if (!subjectDocId || typeof subjectDocId !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(subjectDocId)) {
             return res.status(400).json({ error: "بيانات التسجيل غير مكتملة." });
         }
+
+        const studentSnap = await db.collection('user_registrations').doc(studentUID).get();
+        if (!studentSnap.exists) {
+            return res.status(404).json({ error: "بيانات الطالب غير موجودة." });
+        }
+        const sData = studentSnap.data();
+        const info = sData.registrationInfo || {};
+        const studentId = String(info.studentID || '').trim();
+        const studentName = String(info.fullName || '').trim();
+        const studentGroup = String(info.group || '').trim();
+
+        if (!studentId || !studentName) {
+            return res.status(403).json({ error: "بيانات الطالب غير مكتملة، تواصل مع الإدارة." });
+        }
+
+        const isEmailVerified = req.user.email_verified;
+        const isManuallyVerified = (sData.status === 'verified' || sData.manual_verification === true);
+        if (!isEmailVerified && !isManuallyVerified) {
+            return res.status(403).json({ error: "⛔ الحساب غير مفعل! يرجى تأكيد الإيميل أو مراجعة شؤون الطلاب." });
+        }
+
+        const collegeMap = {
+            'G': 'NURS', 'N': 'NURS', 'P': 'PT',
+            'C': 'PHARM', 'D': 'DENT', 'T': 'CS', 'B': 'BA', 'H': 'HS',
+            'E': 'ENG', 'A': 'ART', 'M': 'MED', 'V': 'VET', 'I': 'MEDIA', 'L': 'ALSUN'
+        };
+        const groupLetter = studentGroup.replace(/[^a-zA-Z]/g, '')[0] || "";
+        const studentCollege = sData.college || collegeMap[groupLetter] || null;
 
         const subjectRef = db.collection('subject_enrollments').doc(subjectDocId);
 
@@ -205,12 +267,21 @@ app.post('/api/student-enroll', verifyToken, async (req, res) => {
 
             const subjectData = subjectSnap.data();
             collegeForSignal = subjectData.college || null;
+
+            if (studentCollege && subjectData.college && subjectData.college !== studentCollege) {
+                throw Object.assign(
+                    new Error("هذه المادة غير متاحة لكليتك."),
+                    { statusCode: 403 }
+                );
+            }
+
             if (subjectData.isOpenForSelfEnrollment !== true) {
                 throw Object.assign(
                     new Error("عذراً، قام أستاذ المادة بإغلاق باب التسجيل."),
                     { statusCode: 403 }
                 );
             }
+
             const currentStudents = subjectData.students || [];
             const isAlreadyEnrolled = currentStudents.some(
                 s => String(s.id).trim() === String(studentId).trim()
@@ -224,9 +295,9 @@ app.post('/api/student-enroll', verifyToken, async (req, res) => {
             }
 
             const newStudentObj = {
-                id: String(studentId).trim(),
-                name: String(studentName).trim(),
-                group: String(studentGroup || '').trim(),
+                id: studentId,
+                name: studentName,
+                group: studentGroup,
                 enrolledBySelf: true,
                 uid: studentUID,
                 timestamp: new Date().toISOString()
@@ -234,7 +305,7 @@ app.post('/api/student-enroll', verifyToken, async (req, res) => {
 
             transaction.update(subjectRef, {
                 students: admin.firestore.FieldValue.arrayUnion(newStudentObj),
-                studentIds: admin.firestore.FieldValue.arrayUnion(String(studentId).trim()),
+                studentIds: admin.firestore.FieldValue.arrayUnion(studentId),
                 studentCount: admin.firestore.FieldValue.increment(1),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
