@@ -79,17 +79,6 @@ const registerStudentLimiter = async (req, res, next) => {
     }
 };
 
-let checkIdRatelimit = null;
-try {
-    checkIdRatelimit = new Ratelimit({
-        redis: Redis.fromEnv(),
-        limiter: Ratelimit.slidingWindow(8, '10 s'),
-        analytics: true,
-        prefix: 'ratelimit:checkStudentId',
-    });
-} catch (e) {
-    console.error('⚠️ Upstash init failed — falling back to local rate limiter:', e.message);
-}
 
 let enrollRatelimit = null;
 try {
@@ -211,6 +200,25 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
 }
+
+async function isRegistrationOpen() {
+    try {
+        const snap = await db.collection('system_config').doc('registration').get();
+        if (!snap.exists) return false;
+        return snap.data().isOpen === true;
+    } catch (e) {
+        console.error('⚠️ Registration status check failed:', e);
+        return false;
+    }
+}
+
+const requireRegistrationOpen = async (req, res, next) => {
+    const open = await isRegistrationOpen();
+    if (!open) {
+        return res.status(403).json({ error: '⛔ باب تسجيل الحسابات مغلق حالياً' });
+    }
+    next();
+};
 
 app.get('/', (req, res) => {
     res.status(200).send("🦅 Nursing System Backend is Running (Bulletproof V6)");
@@ -515,20 +523,12 @@ app.post('/joinSessionSecure', verifyToken, async (req, res) => {
     }
 });
 
-app.post('/api/checkStudentId', checkIdFallbackLimiter, async (req, res) => {
+app.post('/api/checkStudentId', requireRegistrationOpen, checkIdFallbackLimiter, async (req, res) => {
     try {
         const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || 'unknown';
         const { studentId } = req.body || {};
 
-        if (checkIdRatelimit) {
-            const idHint = String(studentId || 'anon').trim().slice(0, 20);
-            const key = `${ip}:${idHint}`;
-            const { success } = await checkIdRatelimit.limit(key);
-            if (!success) {
-                res.setHeader('Retry-After', '10');
-                return res.status(429).json({ error: 'rate_limited' });
-            }
-        }
+
         if (typeof studentId !== 'string' || !STUDENT_ID_SAFE_PATTERN.test(studentId)) {
             return res.status(400).json({ status: 'not_found' });
         }
@@ -559,7 +559,7 @@ app.post('/api/checkStudentId', checkIdFallbackLimiter, async (req, res) => {
     }
 });
 
-app.post('/api/registerStudent', registerStudentLimiter, async (req, res) => {
+app.post('/api/registerStudent', requireRegistrationOpen, registerStudentLimiter, async (req, res) => {
 
 
     let createdUserUID = null;
