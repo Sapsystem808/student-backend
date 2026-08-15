@@ -263,11 +263,16 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
         const studentCollege = sData.college || collegeMap[groupLetter] || null;
 
         const subjectRef = db.collection('subject_enrollments').doc(subjectDocId);
+        const rosterRef = db.collection('subject_rosters').doc(subjectDocId);
+        const indexRef = db.collection('student_subject_index').doc(studentId);
 
         let collegeForSignal = null;
 
         await db.runTransaction(async (transaction) => {
-            const subjectSnap = await transaction.get(subjectRef);
+            const [subjectSnap, rosterSnap] = await Promise.all([
+                transaction.get(subjectRef),
+                transaction.get(rosterRef)
+            ]);
 
             if (!subjectSnap.exists) {
                 throw Object.assign(new Error("المادة غير موجودة أو تم حذفها."), { statusCode: 404 });
@@ -317,6 +322,28 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
                 studentCount: admin.firestore.FieldValue.increment(1),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
+
+            const rosterData = rosterSnap.exists ? rosterSnap.data() : {};
+            const rosterStudents = rosterData.students || [];
+            const rosterIds = rosterData.studentIds || [];
+
+            transaction.set(rosterRef, {
+                students: [...rosterStudents, newStudentObj],
+                studentIds: [...rosterIds, studentId],
+                doctorUID: subjectData.doctorUID || null,
+                college: subjectData.college || studentCollege || null
+            });
+
+            transaction.set(indexRef, {
+                subjects: {
+                    [subjectDocId]: {
+                        subjectName: subjectData.subjectName || subjectName,
+                        college: subjectData.college || null,
+                        doctorUID: subjectData.doctorUID || null,
+                        isShared: subjectData.sharedWithAll === true
+                    }
+                }
+            }, { merge: true });
         });
 
         if (collegeForSignal) {
