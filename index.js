@@ -282,29 +282,21 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
             collegeForSignal = subjectData.college || null;
 
             if (studentCollege && subjectData.college && subjectData.college !== studentCollege) {
-                throw Object.assign(
-                    new Error("هذه المادة غير متاحة لكليتك."),
-                    { statusCode: 403 }
-                );
+                throw Object.assign(new Error("هذه المادة غير متاحة لكليتك."), { statusCode: 403 });
             }
 
             if (subjectData.isOpenForSelfEnrollment !== true) {
-                throw Object.assign(
-                    new Error("عذراً، قام أستاذ المادة بإغلاق باب التسجيل."),
-                    { statusCode: 403 }
-                );
+                throw Object.assign(new Error("عذراً، قام أستاذ المادة بإغلاق باب التسجيل."), { statusCode: 403 });
             }
+            const rosterData = rosterSnap.exists ? rosterSnap.data() : {};
+            const rosterStudents = rosterData.students || [];
+            const rosterIds = rosterData.studentIds || [];
 
-            const currentStudents = subjectData.students || [];
-            const isAlreadyEnrolled = currentStudents.some(
-                s => String(s.id).trim() === String(studentId).trim()
+            const isAlreadyEnrolled = rosterIds.some(
+                id => String(id).trim() === String(studentId).trim()
             );
-
             if (isAlreadyEnrolled) {
-                throw Object.assign(
-                    new Error("لقد قمت بالتسجيل في هذه المادة مسبقاً!"),
-                    { statusCode: 409 }
-                );
+                throw Object.assign(new Error("لقد قمت بالتسجيل في هذه المادة مسبقاً!"), { statusCode: 409 });
             }
 
             const newStudentObj = {
@@ -315,24 +307,16 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
                 uid: studentUID,
                 timestamp: new Date().toISOString()
             };
-
             transaction.update(subjectRef, {
-                students: admin.firestore.FieldValue.arrayUnion(newStudentObj),
-                studentIds: admin.firestore.FieldValue.arrayUnion(studentId),
                 studentCount: admin.firestore.FieldValue.increment(1),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
-
-            const rosterData = rosterSnap.exists ? rosterSnap.data() : {};
-            const rosterStudents = rosterData.students || [];
-            const rosterIds = rosterData.studentIds || [];
-
             transaction.set(rosterRef, {
                 students: [...rosterStudents, newStudentObj],
                 studentIds: [...rosterIds, studentId],
                 doctorUID: subjectData.doctorUID || null,
                 college: subjectData.college || studentCollege || null
-            });
+            }, { merge: true });
 
             transaction.set(indexRef, {
                 subjects: {
