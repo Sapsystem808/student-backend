@@ -661,6 +661,8 @@ app.post('/api/registerStudent', requireRegistrationOpen, registerStudentLimiter
 
         createdUserUID = userRecord.uid;
 
+        const derivedCollege = deriveCollegeFromGroup(finalGroup);
+
         await admin.auth().setCustomUserClaims(createdUserUID, {
             role: 'student',
             studentID: cleanID,
@@ -668,7 +670,6 @@ app.post('/api/registerStudent', requireRegistrationOpen, registerStudentLimiter
             college: derivedCollege
         });
         const batch = db.batch();
-        const derivedCollege = deriveCollegeFromGroup(finalGroup);
 
         batch.set(db.collection("user_registrations").doc(createdUserUID), {
             registrationInfo: {
