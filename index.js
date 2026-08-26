@@ -156,6 +156,19 @@ const COLLEGE_COORDS = {
 };
 const MAX_DISTANCE_KM = 2.5;
 
+const GROUP_LETTER_TO_COLLEGE = {
+    'G': 'NURS', 'N': 'NURS', 'P': 'PT',
+    'C': 'PHARM', 'D': 'DENT', 'T': 'CS', 'B': 'BA', 'H': 'HS',
+    'E': 'ENG', 'A': 'ART', 'M': 'MED', 'V': 'VET', 'I': 'MEDIA', 'L': 'ALSUN'
+};
+
+
+function deriveCollegeFromGroup(group) {
+    const raw = String(group || '').toUpperCase();
+    const letter = raw.replace(/[^A-Z]/g, '')[0] || '';
+    return GROUP_LETTER_TO_COLLEGE[letter] || null;
+}
+
 const verifyToken = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -254,13 +267,9 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
             return res.status(403).json({ error: "⛔ الحساب غير مفعل! يرجى تأكيد الإيميل أو مراجعة شؤون الطلاب." });
         }
 
-        const collegeMap = {
-            'G': 'NURS', 'N': 'NURS', 'P': 'PT',
-            'C': 'PHARM', 'D': 'DENT', 'T': 'CS', 'B': 'BA', 'H': 'HS',
-            'E': 'ENG', 'A': 'ART', 'M': 'MED', 'V': 'VET', 'I': 'MEDIA', 'L': 'ALSUN'
-        };
-        const groupLetter = studentGroup.replace(/[^a-zA-Z]/g, '')[0] || "";
-        const studentCollege = sData.college || collegeMap[groupLetter] || null;
+        const studentCollege = sData.college
+            || sData.registrationInfo?.college
+            || deriveCollegeFromGroup(studentGroup);
 
         const subjectRef = db.collection('subject_enrollments').doc(subjectDocId);
         const rosterRef = db.collection('subject_rosters').doc(subjectDocId);
@@ -658,6 +667,7 @@ app.post('/api/registerStudent', requireRegistrationOpen, registerStudentLimiter
         });
 
         const batch = db.batch();
+        const derivedCollege = deriveCollegeFromGroup(finalGroup);
 
         batch.set(db.collection("user_registrations").doc(createdUserUID), {
             registrationInfo: {
@@ -665,8 +675,10 @@ app.post('/api/registerStudent', requireRegistrationOpen, registerStudentLimiter
                 studentID: cleanID,
                 level: level.toString(),
                 gender: gender,
-                group: finalGroup
+                group: finalGroup,
+                college: derivedCollege
             },
+            college: derivedCollege,
             role: "student",
             attendanceCount: 0,
             avatarClass: "fa-user-graduate",
