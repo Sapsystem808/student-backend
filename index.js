@@ -324,10 +324,11 @@ app.post('/api/student-enroll', verifyToken, studentEnrollLimiter, async (req, r
                 students: [...rosterStudents, newStudentObj],
                 studentIds: [...rosterIds, studentId],
                 doctorUID: subjectData.doctorUID || null,
-                college: subjectData.college || studentCollege || null
+                college: studentCollege || subjectData.college || null
             }, { merge: true });
 
             transaction.set(indexRef, {
+                college: studentCollege || subjectData.college || null,
                 subjects: {
                     [subjectDocId]: {
                         subjectName: subjectData.subjectName || subjectName,
