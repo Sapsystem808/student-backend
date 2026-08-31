@@ -797,10 +797,6 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-app.get('/api/time', (req, res) => {
-    res.status(200).json({ now: Date.now() });
-});
-
 app.post('/api/verifyOfflinePattern', verifyToken, async (req, res) => {
     try {
         const studentUID = req.user.uid;
